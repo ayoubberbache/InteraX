@@ -1,5 +1,6 @@
 'use client'
 
+import React, { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { 
@@ -30,6 +31,27 @@ export function Sidebar() {
   const pathname = usePathname()
   const { currentUser, isLoggedIn, logout } = useAuth()
   const { t } = useLanguage()
+  const [unreadCount, setUnreadCount] = useState(0)
+
+  const fetchUnread = useCallback(async () => {
+    if (!currentUser) return
+    try {
+      const res = await fetch(`/api/notifications?userId=${currentUser.id}`)
+      if (res.ok) {
+        const data = await res.json()
+        if (Array.isArray(data)) {
+          setUnreadCount(data.filter((n: any) => !n.is_read).length)
+        }
+      }
+    } catch {}
+  }, [currentUser])
+
+  useEffect(() => {
+    if (!isLoggedIn || !currentUser) return
+    fetchUnread()
+    const id = setInterval(fetchUnread, 10000)
+    return () => clearInterval(id)
+  }, [isLoggedIn, currentUser, fetchUnread])
 
   if (pathname === '/login' || pathname === '/logout' || pathname === '/signup') {
     return null
@@ -66,7 +88,11 @@ export function Sidebar() {
                 <Icon className="h-4.5 w-4.5 h-[18px] w-[18px]" />
               </div>
               <span>{t(item.transKey)}</span>
-              {/* Notifications badge can be connected to real data later */}
+              {item.href === '/notifications' && unreadCount > 0 && (
+                <Badge className="ms-auto rounded-full px-1.5 py-0.5 text-[10px] font-bold bg-primary text-primary-foreground">
+                  {unreadCount}
+                </Badge>
+              )}
             </Link>
           )
         })}

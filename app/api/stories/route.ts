@@ -46,6 +46,30 @@ export async function POST(req: NextRequest) {
       [userId, mediaToSave]
     )
 
+    // Notify followers
+    try {
+      const followers = await query('SELECT follower_id FROM follows WHERE following_id = $1', [userId])
+      if (followers && followers.length > 0) {
+        const creator = await queryOne('SELECT full_name, avatar_url FROM users WHERE id = $1', [userId])
+        for (const f of followers) {
+          await execute(
+            `INSERT INTO notifications (user_id, type, target_id, target_type, message, from_user_id, from_user_name, from_user_avatar, is_read, created_at)
+             VALUES ($1, 'story', $2, 'story', $3, $4, $5, $6, false, NOW())`,
+            [
+              f.follower_id,
+              story.id,
+              `${creator?.full_name || 'Someone'} posted a new story`,
+              userId,
+              creator?.full_name || null,
+              creator?.avatar_url || null,
+            ]
+          )
+        }
+      }
+    } catch (err) {
+      console.error('Failed to send story notifications', err)
+    }
+
     return NextResponse.json({ id: story.id, ...story })
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 })

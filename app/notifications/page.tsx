@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Heart, MessageCircle, UserPlus, AtSign, Users, Star, Check, Bell, Trash2 } from 'lucide-react'
+import { Heart, MessageCircle, UserPlus, AtSign, Users, Star, Check, Bell, Trash2, Newspaper, BookOpen } from 'lucide-react'
 import { MainLayout } from '@/frontend/components/layout/main-layout'
 import { useAuth } from '@/backend/lib/auth-context'
 import { formatTimeAgo } from '@/backend/lib/utils'
@@ -112,12 +112,16 @@ export default function NotificationsPage() {
       case 'mention': return <AtSign className="h-4 w-4 text-purple-500" />
       case 'group_invite': return <Users className="h-4 w-4 text-orange-500" />
       case 'rating': return <Star className="h-4 w-4 text-yellow-500" />
+      case 'story': return <BookOpen className="h-4 w-4 text-purple-500" />
+      case 'story_reaction': return <Heart className="h-4 w-4 text-red-500" />
+      case 'post': return <Newspaper className="h-4 w-4 text-emerald-500" />
       default: return <Bell className="h-4 w-4 text-muted-foreground" />
     }
   }
 
   const getNotificationLink = (notif: Notification) => {
     if (notif.target_type === 'post' && notif.target_id) return '/'
+    if (notif.target_type === 'story') return '/'
     if (notif.target_type === 'group' && notif.target_id) return `/groups/${notif.target_id}`
     if (notif.type === 'follow' && notif.from_user_id) return `/profile/${notif.from_user_id}`
     return '#'
