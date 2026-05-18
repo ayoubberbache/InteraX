@@ -27,15 +27,13 @@ export async function POST(
       const post = await queryOne('SELECT user_id FROM posts WHERE id = $1', [postId])
       if (post && post.user_id !== userId) {
         await execute(
-          `INSERT INTO notifications (user_id, type, target_id, target_type, message, from_user_id, from_user_name, from_user_avatar, is_read, created_at)
-           VALUES ($1, 'comment', $2, 'post', $3, $4, $5, $6, false, NOW())`,
+          `INSERT INTO notifications (user_id, type, target_id, target_type, message, from_user_id, is_read, created_at)
+           VALUES ($1, 'comment', $2, 'post', $3, $4, false, NOW())`,
           [
             post.user_id,
             postId,
             `${user?.name || 'Someone'} commented on your post`,
             userId,
-            user?.name || null,
-            user?.avatar || null,
           ]
         )
       }

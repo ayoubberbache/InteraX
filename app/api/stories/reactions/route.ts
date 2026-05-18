@@ -19,15 +19,13 @@ export async function POST(req: NextRequest) {
       if (story && story.user_id !== userId) {
         const viewer = await queryOne('SELECT full_name, avatar_url FROM users WHERE id = $1', [userId])
         await execute(
-          `INSERT INTO notifications (user_id, type, target_id, target_type, message, from_user_id, from_user_name, from_user_avatar, is_read, created_at)
-           VALUES ($1, 'story_reaction', $2, 'story', $3, $4, $5, $6, false, NOW())`,
+          `INSERT INTO notifications (user_id, type, target_id, target_type, message, from_user_id, is_read, created_at)
+           VALUES ($1, 'story_reaction', $2, 'story', $3, $4, false, NOW())`,
           [
             story.user_id,
             storyId,
             `${viewer?.full_name || 'Someone'} reacted to your story with ${emoji}`,
             userId,
-            viewer?.full_name || null,
-            viewer?.avatar_url || null,
           ]
         )
       }

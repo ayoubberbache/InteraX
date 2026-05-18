@@ -36,15 +36,13 @@ export async function POST(
       try {
         const viewer = await queryOne('SELECT full_name, avatar_url FROM users WHERE id = $1', [viewerId])
         await execute(
-          `INSERT INTO notifications (user_id, type, message, from_user_id, from_user_name, from_user_avatar, is_read, created_at)
-           VALUES ($1, 'follow', $2, $3, $4, $5, false, NOW())
+          `INSERT INTO notifications (user_id, type, message, from_user_id, is_read, created_at)
+           VALUES ($1, 'follow', $2, $3, false, NOW())
            ON CONFLICT DO NOTHING`,
           [
             targetId,
             `${viewer?.full_name || 'Someone'} started following you`,
             viewerId,
-            viewer?.full_name || null,
-            viewer?.avatar_url || null,
           ]
         )
       } catch { /* notification is non-critical */ }

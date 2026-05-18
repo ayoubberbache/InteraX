@@ -53,15 +53,13 @@ export async function POST(req: NextRequest) {
         const creator = await queryOne('SELECT full_name, avatar_url FROM users WHERE id = $1', [userId])
         for (const f of followers) {
           await execute(
-            `INSERT INTO notifications (user_id, type, target_id, target_type, message, from_user_id, from_user_name, from_user_avatar, is_read, created_at)
-             VALUES ($1, 'story', $2, 'story', $3, $4, $5, $6, false, NOW())`,
+            `INSERT INTO notifications (user_id, type, target_id, target_type, message, from_user_id, is_read, created_at)
+             VALUES ($1, 'story', $2, 'story', $3, $4, false, NOW())`,
             [
               f.follower_id,
               story.id,
               `${creator?.full_name || 'Someone'} posted a new story`,
               userId,
-              creator?.full_name || null,
-              creator?.avatar_url || null,
             ]
           )
         }

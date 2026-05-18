@@ -31,15 +31,13 @@ export async function POST(
         if (post && post.user_id !== userId) {
           const viewer = await queryOne('SELECT full_name, avatar_url FROM users WHERE id = $1', [userId])
           await execute(
-            `INSERT INTO notifications (user_id, type, target_id, target_type, message, from_user_id, from_user_name, from_user_avatar, is_read, created_at)
-             VALUES ($1, 'like', $2, 'post', $3, $4, $5, $6, false, NOW())`,
+            `INSERT INTO notifications (user_id, type, target_id, target_type, message, from_user_id, is_read, created_at)
+             VALUES ($1, 'like', $2, 'post', $3, $4, false, NOW())`,
             [
               post.user_id,
               postId,
               `${viewer?.full_name || 'Someone'} liked your post`,
               userId,
-              viewer?.full_name || null,
-              viewer?.avatar_url || null,
             ]
           )
         }

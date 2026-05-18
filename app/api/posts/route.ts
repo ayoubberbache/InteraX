@@ -114,18 +114,18 @@ export async function POST(req: NextRequest) {
         const group = await queryOne('SELECT owner_id, name FROM groups WHERE id = $1', [group_id])
         if (group && group.owner_id !== userId) {
           await execute(
-            `INSERT INTO notifications (user_id, type, target_id, target_type, message, from_user_id, from_user_name, from_user_avatar, is_read, created_at)
-             VALUES ($1, 'post_group', $2, 'post', $3, $4, $5, $6, false, NOW())`,
-            [group.owner_id, post.id, `${viewer?.full_name || 'Someone'} posted in your group "${group.name}"`, userId, viewer?.full_name || null, viewer?.avatar_url || null]
+            `INSERT INTO notifications (user_id, type, target_id, target_type, message, from_user_id, is_read, created_at)
+             VALUES ($1, 'post_group', $2, 'post', $3, $4, false, NOW())`,
+            [group.owner_id, post.id, `${viewer?.full_name || 'Someone'} posted in your group "${group.name}"`, userId]
           )
         }
       } else if (page_id) {
         const page = await queryOne('SELECT owner_id, name FROM pages WHERE id = $1', [page_id])
         if (page && page.owner_id !== userId) {
           await execute(
-            `INSERT INTO notifications (user_id, type, target_id, target_type, message, from_user_id, from_user_name, from_user_avatar, is_read, created_at)
-             VALUES ($1, 'post_page', $2, 'post', $3, $4, $5, $6, false, NOW())`,
-            [page.owner_id, post.id, `${viewer?.full_name || 'Someone'} posted on your page "${page.name}"`, userId, viewer?.full_name || null, viewer?.avatar_url || null]
+            `INSERT INTO notifications (user_id, type, target_id, target_type, message, from_user_id, is_read, created_at)
+             VALUES ($1, 'post_page', $2, 'post', $3, $4, false, NOW())`,
+            [page.owner_id, post.id, `${viewer?.full_name || 'Someone'} posted on your page "${page.name}"`, userId]
           )
         }
       } else {
@@ -134,15 +134,13 @@ export async function POST(req: NextRequest) {
         if (followers && followers.length > 0) {
           for (const f of followers) {
             await execute(
-              `INSERT INTO notifications (user_id, type, target_id, target_type, message, from_user_id, from_user_name, from_user_avatar, is_read, created_at)
-               VALUES ($1, 'post', $2, 'post', $3, $4, $5, $6, false, NOW())`,
+              `INSERT INTO notifications (user_id, type, target_id, target_type, message, from_user_id, is_read, created_at)
+               VALUES ($1, 'post', $2, 'post', $3, $4, false, NOW())`,
               [
                 f.follower_id,
                 post.id,
                 `${viewer?.full_name || 'Someone'} created a new post`,
                 userId,
-                viewer?.full_name || null,
-                viewer?.avatar_url || null,
               ]
             )
           }

@@ -29,14 +29,12 @@ export async function POST(
         
         if (group && group.owner_id !== userId) {
           await execute(
-            `INSERT INTO notifications (user_id, type, message, from_user_id, from_user_name, from_user_avatar, is_read, created_at)
-             VALUES ($1, 'join_group', $2, $3, $4, $5, false, NOW())`,
+            `INSERT INTO notifications (user_id, type, message, from_user_id, is_read, created_at)
+             VALUES ($1, 'join_group', $2, $3, false, NOW())`,
             [
               group.owner_id,
               `${viewer?.full_name || 'Someone'} joined your group "${group.name}"`,
               userId,
-              viewer?.full_name || null,
-              viewer?.avatar_url || null,
             ]
           )
         }
