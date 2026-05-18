@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-15 -15 130 130" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+  <!-- Small dot -->
+  <circle cx="20" cy="20" r="2" fill="currentColor" stroke="none" />
+  
+  <!-- Outer circle -->
+  <path d="M 28 15 A 45 45 0 1 1 15 28" />
+
+  <!-- Head -->
+  <circle cx="50" cy="40" r="15" />
+  
+  <!-- Shoulders -->
+  <path d="M 25 85 A 30 30 0 0 1 75 85" />
+</svg>
