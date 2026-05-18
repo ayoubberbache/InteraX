@@ -13,6 +13,7 @@ import { Label } from '@/frontend/components/ui/label'
 import { ThemeToggle } from '@/frontend/components/theme/theme-toggle'
 import { Separator } from '@/frontend/components/ui/separator'
 import { InteraXLogo } from '@/frontend/components/ui/logo'
+import { supabase } from '@/backend/lib/supabase'
 
 export default function SignupPage() {
   const router = useRouter()
@@ -26,6 +27,7 @@ export default function SignupPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
+  const [successMsg, setSuccessMsg] = useState('')
   const searchParams = useSearchParams()
 
   useEffect(() => {
@@ -34,7 +36,17 @@ export default function SignupPage() {
   }, [searchParams])
 
   const handleOAuthLogin = async (provider: 'google' | 'github') => {
-    setError('OAuth signup is disabled in this environment')
+    try {
+      const { error: authError } = await supabase.auth.signInWithOAuth({
+        provider,
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+        },
+      })
+      if (authError) setError(authError.message)
+    } catch (err: any) {
+      setError(err.message || 'OAuth error')
+    }
   }
 
   // Redirect if already logged in
@@ -57,6 +69,7 @@ export default function SignupPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
+    setSuccessMsg('')
 
     if (!allRequirementsMet) {
       setError('Please meet all password requirements')
@@ -73,12 +86,19 @@ export default function SignupPage() {
       return
     }
 
+    if (!email.toLowerCase().endsWith('@hns-re2sd.dz')) {
+      setError('Only @hns-re2sd.dz school emails are allowed.')
+      return
+    }
+
     setIsLoading(true)
 
     try {
       const result = await signup(name, username, email, password)
       if (result.success) {
-        // AuthContext listener will handle isLoggedIn state
+        if (result.message) {
+          setSuccessMsg(result.message)
+        }
       } else {
         setError(result.error || 'Something went wrong')
       }
@@ -127,6 +147,11 @@ export default function SignupPage() {
               {error && (
                 <div className="p-3 text-sm text-destructive bg-destructive/10 rounded-lg">
                   {error}
+                </div>
+              )}
+              {successMsg && (
+                <div className="p-3 text-sm text-green-600 bg-green-50 rounded-lg border border-green-200">
+                  {successMsg}
                 </div>
               )}
 

@@ -106,12 +106,7 @@ export function Header() {
                 </Link>
               </Button>
 
-              {/* Chat — desktop only (bottom nav handles mobile) */}
-              <Button variant="ghost" size="icon" className="hidden md:inline-flex h-9 w-9 rounded-xl" asChild>
-                <Link href="/chat">
-                  <MessageCircle className="h-[18px] w-[18px]" />
-                </Link>
-              </Button>
+
             </>
           )}
           

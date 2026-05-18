@@ -14,6 +14,7 @@ import { ThemeToggle } from '@/frontend/components/theme/theme-toggle'
 import { Separator } from '@/frontend/components/ui/separator'
 import { useLanguage } from '@/backend/lib/i18n/context'
 import { InteraXLogo } from '@/frontend/components/ui/logo'
+import { supabase } from '@/backend/lib/supabase'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -32,7 +33,17 @@ export default function LoginPage() {
   }, [searchParams])
 
   const handleOAuthLogin = async (provider: 'google' | 'github') => {
-    setError('OAuth login is disabled in this environment')
+    try {
+      const { error: authError } = await supabase.auth.signInWithOAuth({
+        provider,
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+        },
+      })
+      if (authError) setError(authError.message)
+    } catch (err: any) {
+      setError(err.message || 'OAuth error')
+    }
   }
 
   // Redirect if already logged in - use useEffect to avoid calling router during render

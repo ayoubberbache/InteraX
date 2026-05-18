@@ -13,6 +13,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'All fields are required' }, { status: 400 })
     }
 
+    if (!email.toLowerCase().endsWith('@hns-re2sd.dz')) {
+      return NextResponse.json({ error: 'Only @hns-re2sd.dz school emails are allowed.' }, { status: 400 })
+    }
+
     // Check if user exists
     const existing = await queryOne('SELECT id FROM users WHERE email = $1 OR username = $2', [email, username])
     if (existing) {

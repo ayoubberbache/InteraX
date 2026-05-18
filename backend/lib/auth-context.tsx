@@ -1,6 +1,7 @@
 'use client'
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
+import { supabase } from '@/backend/lib/supabase'
 
 /** Safely parse a fetch Response as JSON, returning null on HTML/error pages */
 async function safeJson(res: Response): Promise<any> {
@@ -36,7 +37,7 @@ interface AuthContextType {
   isLoggedIn: boolean
   loading: boolean
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>
-  signup: (fullName: string, username: string, email: string, password: string) => Promise<{ success: boolean; error?: string }>
+  signup: (fullName: string, username: string, email: string, password: string) => Promise<{ success: boolean; error?: string; message?: string }>
   logout: () => void
   refreshUser: () => Promise<void>
 }
@@ -89,10 +90,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = useCallback(async (email: string, password: string) => {
     try {
-      const res = await fetch('/api/auth/login', {
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      })
+      
+      if (authError) return { success: false, error: authError.message }
+      if (!authData.session) return { success: false, error: 'Failed to get session' }
+
+      const res = await fetch('/api/auth/sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email.trim(), password }),
+        body: JSON.stringify({ access_token: authData.session.access_token }),
       })
       const data = await safeJson(res)
       if (!res.ok) return { success: false, error: data.error || 'Login failed' }
@@ -109,19 +118,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signup = useCallback(async (fullName: string, username: string, email: string, password: string) => {
     try {
-      const res = await fetch('/api/auth/signup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ full_name: fullName, username: username.toLowerCase(), email: email.trim(), password }),
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: email.trim(),
+        password,
+        options: {
+          data: {
+            full_name: fullName,
+            username: username.toLowerCase()
+          },
+          emailRedirectTo: `${window.location.origin}/auth/callback`
+        }
       })
-      const data = await safeJson(res)
-      if (!res.ok) return { success: false, error: data.error || 'Signup failed' }
+      
+      if (authError) return { success: false, error: authError.message }
 
-      const user = dbToUser(data.user)
-      setCurrentUser(user)
-      localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user))
-      localStorage.setItem(TOKEN_KEY, data.token)
-      return { success: true }
+      if (authData.session) {
+        const res = await fetch('/api/auth/sync', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ access_token: authData.session.access_token }),
+        })
+        const data = await safeJson(res)
+        if (!res.ok) return { success: false, error: data.error || 'Signup failed' }
+
+        const user = dbToUser(data.user)
+        setCurrentUser(user)
+        localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user))
+        localStorage.setItem(TOKEN_KEY, data.token)
+        return { success: true }
+      }
+
+      return { success: true, message: 'Please check your email to verify your account.' }
     } catch (error: any) {
       return { success: false, error: error.message || 'Network error' }
     }
