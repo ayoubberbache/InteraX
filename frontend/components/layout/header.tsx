@@ -49,27 +49,27 @@ export function Header() {
   return (
     <header className="fixed top-0 left-0 right-0 z-50 h-14 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="flex h-full items-center px-4 gap-4">
-        {/* Logo - aligned with sidebar width */}
-        <div className="w-64 flex-shrink-0 flex items-center">
+        {/* Logo */}
+        <div className="flex-shrink-0 flex items-center md:w-64">
           <Link href="/" className="flex items-center gap-2.5 group">
             <InteraXLogo className="h-9 w-auto transition-transform duration-300 group-hover:scale-110" />
-            <span className="font-black bg-gradient-to-r from-[#4B0082] via-[#9370DB] to-[#E6E6FA] bg-clip-text text-transparent text-xl tracking-tight">
+            <span className="hidden sm:block font-black bg-gradient-to-r from-[#4B0082] via-[#9370DB] to-[#E6E6FA] bg-clip-text text-transparent text-xl tracking-tight">
               InteraX
             </span>
           </Link>
         </div>
 
-        {/* Search Bar - center, desktop prominent */}
-        <form onSubmit={handleSearch} className="flex-1 max-w-xl mx-auto">
+        {/* Search Bar */}
+        <form onSubmit={handleSearch} className="flex-1 max-w-xl mx-auto px-2 sm:px-0">
           <div className="relative w-full group">
-            <Search className="absolute start-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors" />
+            <Search className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors" />
             <input
               ref={inputRef}
               type="search"
               value={query}
               onChange={e => setQuery(e.target.value)}
               placeholder={t('search_placeholder')}
-              className="w-full h-10 rounded-2xl border border-border bg-secondary/40 px-4 ps-10 pe-16 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-primary/30 focus:bg-secondary/60 transition-all"
+              className="w-full h-9 sm:h-10 rounded-2xl border border-border bg-secondary/40 px-4 ps-9 pe-4 sm:pe-16 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-primary/30 focus:bg-secondary/60 transition-all"
             />
             <div className="absolute end-3 top-1/2 -translate-y-1/2 flex items-center gap-1 pointer-events-none">
               <kbd className="hidden md:flex items-center gap-0.5 rounded border border-border px-1.5 py-0.5 text-[10px] text-muted-foreground">
@@ -83,10 +83,10 @@ export function Header() {
         <div className="flex items-center gap-1.5 flex-shrink-0">
           {isLoggedIn && (
             <>
-              {/* Create CTA */}
+              {/* Create CTA - hidden on mobile (use bottom nav instead) */}
               <Button
                 asChild
-                className="h-9 px-4 rounded-xl bg-gradient-to-r from-[#4B0082] to-[#9370DB] text-white border-0 shadow-md hover:shadow-primary/25 hover:scale-105 transition-all text-sm font-semibold me-1"
+                className="hidden md:flex h-9 px-4 rounded-xl bg-gradient-to-r from-[#4B0082] to-[#9370DB] text-white border-0 shadow-md hover:shadow-primary/25 hover:scale-105 transition-all text-sm font-semibold me-1"
               >
                 <Link href="/create">
                   <Plus className="h-4 w-4 me-1.5" />
@@ -94,7 +94,8 @@ export function Header() {
                 </Link>
               </Button>
 
-              <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl relative" asChild>
+              {/* Bell + Chat icons — hidden on mobile (in bottom nav) */}
+              <Button variant="ghost" size="icon" className="hidden md:inline-flex h-9 w-9 rounded-xl relative" asChild>
                 <Link href="/notifications">
                   <Bell className="h-[18px] w-[18px]" />
                   {unreadCount > 0 && (
@@ -105,7 +106,7 @@ export function Header() {
                 </Link>
               </Button>
 
-              <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl" asChild>
+              <Button variant="ghost" size="icon" className="hidden md:inline-flex h-9 w-9 rounded-xl" asChild>
                 <Link href="/chat">
                   <MessageCircle className="h-[18px] w-[18px]" />
                 </Link>

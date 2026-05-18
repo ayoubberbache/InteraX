@@ -36,7 +36,7 @@ export function Sidebar() {
   }
 
   return (
-    <aside className="fixed start-0 top-14 bottom-0 w-64 flex flex-col border-e border-border bg-background z-40 overflow-y-auto">
+    <aside className="hidden md:flex fixed start-0 top-14 bottom-0 w-64 flex-col border-e border-border bg-background z-40 overflow-y-auto">
       {/* Nav */}
       <nav className="flex-1 p-3 space-y-0.5">
         {navItems.map((item) => {
