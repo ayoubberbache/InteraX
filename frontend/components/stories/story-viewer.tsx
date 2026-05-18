@@ -14,6 +14,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/frontend/components/ui/dropdown-menu'
+import { useLanguage } from '@/backend/lib/i18n/context'
 
 interface ApiStory {
   id: string
@@ -57,6 +58,7 @@ export function StoryViewer({
   const [hasLiked, setHasLiked] = useState(false)
   const mediaRef = useRef<HTMLVideoElement | HTMLAudioElement>(null)
   const { currentUser } = useAuth()
+  const { t } = useLanguage()
 
   useEffect(() => {
     setMounted(true)
@@ -262,7 +264,7 @@ export function StoryViewer({
               <DropdownMenuContent align="end" className="w-40 z-[110]">
                 <DropdownMenuItem onClick={handleDelete} className="text-destructive focus:bg-destructive/10">
                   <Trash2 className="h-4 w-4 mr-2" />
-                  Delete Story
+                  {t('story_delete')}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

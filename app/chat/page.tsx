@@ -20,6 +20,7 @@ import {
 import { InteraXLogo } from '@/frontend/components/ui/logo'
 import { MainLayout } from '@/frontend/components/layout/main-layout'
 import { useAuth } from '@/backend/lib/auth-context'
+import { useLanguage } from '@/backend/lib/i18n/context'
 import { Button } from '@/frontend/components/ui/button'
 import { Input } from '@/frontend/components/ui/input'
 import { Avatar, AvatarFallback, AvatarImage } from '@/frontend/components/ui/avatar'
@@ -100,6 +101,7 @@ function isSingleEmoji(str: string): boolean {
 export default function ChatPage() {
   const router = useRouter()
   const { currentUser, isLoggedIn } = useAuth()
+  const { t } = useLanguage()
 
   /* ─── State ─── */
   const [conversations, setConversations] = useState<DbConversation[]>([])
@@ -324,7 +326,7 @@ export default function ChatPage() {
       }
     } catch (err) {
       console.error(err)
-      toast.error('Failed to send media')
+      toast.error(t('chat_media_failed'))
     }
   }
 
@@ -338,7 +340,7 @@ export default function ChatPage() {
       await handleSendMedia(url, 'image')
     } catch (err) {
       console.error(err)
-      toast.error('Upload failed')
+      toast.error(t('chat_upload_failed'))
     } finally {
       setIsUploading(false)
       if (fileInputRef.current) fileInputRef.current.value = ''
@@ -353,7 +355,7 @@ export default function ChatPage() {
       await handleSendMedia(url, 'audio')
     } catch (err) {
       console.error(err)
-      toast.error('Voice message failed')
+      toast.error(t('chat_voice_failed'))
     } finally {
       setIsUploading(false)
     }
@@ -380,7 +382,7 @@ export default function ChatPage() {
 
   const handleDeleteMsg = async (id: string) => {
     if (!currentUser) return
-    if (!confirm('Delete this message?')) return
+    if (!confirm(t('chat_delete_msg_confirm'))) return
     try {
       const res = await fetch(`/api/messages?id=${id}`, {
         method: 'DELETE',
@@ -415,7 +417,7 @@ export default function ChatPage() {
         body: JSON.stringify({ emoji: reaction, userId: currentUser.id })
       })
       if (!res.ok) {
-        toast.error('Failed to react')
+        toast.error(t('chat_react_failed'))
       }
     } catch (err) {
       console.error(err)
@@ -424,7 +426,7 @@ export default function ChatPage() {
 
   const handleDeleteChat = async () => {
     if (!selectedConversation) return
-    if (!confirm('Permanently delete this conversation?')) return
+    if (!confirm(t('chat_delete_confirm'))) return
     try {
       const res = await fetch(`/api/conversations?id=${selectedConversation.id}`, { 
         method: 'DELETE',
@@ -479,7 +481,7 @@ export default function ChatPage() {
       } else {
         payload = { 
           participantIds: [...selectedGroupUsers.map(u => u.id), currentUser.id], 
-          groupName: groupName.trim() || 'Group Chat', 
+          groupName: groupName.trim() || t('chat_title'), 
           groupAvatar: groupAvatar || null,
           userId: currentUser.id 
         }
@@ -614,7 +616,7 @@ Tell users you can help them navigate the platform.`
         }
       }
     } catch (err) {
-      setBotError('AI is currently unavailable. Please check your API keys.')
+      setBotError(t('chat_bot_error'))
       // Remove the empty assistant bubble that was just added
       setBotMessages(prev => prev.filter(m => m.id !== assistantId))
     } finally {
@@ -653,7 +655,7 @@ Tell users you can help them navigate the platform.`
           {/* ═══ Conversations List ═══ */}
           <div className={cn('border-r border-border flex flex-col h-full min-h-0', isAnyChatOpen ? 'hidden md:flex' : 'flex')}>
             <div className="p-4 border-b border-border flex items-center justify-between">
-              <h1 className="text-xl font-bold">Messages</h1>
+              <h1 className="text-xl font-bold">{t('chat_title')}</h1>
               <Dialog open={isNewChatOpen} onOpenChange={setIsNewChatOpen}>
                 <DialogTrigger asChild>
                   <Button variant="ghost" size="icon" className="rounded-full h-10 w-10">
@@ -662,13 +664,13 @@ Tell users you can help them navigate the platform.`
                 </DialogTrigger>
                 <DialogContent className="sm:max-w-md">
                   <DialogHeader>
-                    <DialogTitle>New Conversation / Group Chat</DialogTitle>
+                    <DialogTitle>{t('chat_new_chat')}</DialogTitle>
                   </DialogHeader>
                   <div className="space-y-4 py-4">
                     <div className="relative">
                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                       <Input
-                        placeholder="Search by name or username..."
+                        placeholder={t('chat_search_users')}
                         className="pl-10"
                         value={newChatSearchQuery}
                         onChange={(e) => handleSearchUsers(e.target.value)}
@@ -696,7 +698,7 @@ Tell users you can help them navigate the platform.`
                         ))
                       ) : (
                         <div className="pt-2">
-                          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 px-3">Suggested Accounts</p>
+                          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 px-3">{t('chat_suggested')}</p>
                           {suggestedUsers.filter(u => u.id !== currentUser?.id).map(user => (
                             <button
                               key={user.id}
@@ -738,10 +740,10 @@ Tell users you can help them navigate the platform.`
                               <AvatarFallback><ImageIcon className="h-5 w-5 text-muted-foreground" /></AvatarFallback>
                             </Avatar>
                           </label>
-                          <Input className="flex-1" placeholder="Group Name (optional)" value={groupName} onChange={e => setGroupName(e.target.value)} />
+                          <Input className="flex-1" placeholder={t('chat_group_name')} value={groupName} onChange={e => setGroupName(e.target.value)} />
                         </div>
                         <Button className="w-full" onClick={() => startNewConversation()}>
-                          {(selectedGroupUsers.length > 1 || groupName.trim()) ? `Create Group (${selectedGroupUsers.length})` : 'Start Chat'}
+                          {(selectedGroupUsers.length > 1 || groupName.trim()) ? `${t('chat_create_group')} (${selectedGroupUsers.length})` : t('chat_start_chat')}
                         </Button>
                       </div>
                     )}
@@ -754,7 +756,7 @@ Tell users you can help them navigate the platform.`
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
-                  placeholder="Search chats..."
+                  placeholder={t('chat_search_chats')}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-10 h-9"
@@ -775,8 +777,8 @@ Tell users you can help them navigate the platform.`
                   <div className="absolute bottom-1 right-1 h-3 w-3 rounded-full bg-emerald-500 border-2 border-background" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-sm">InteraX CB ✨</p>
-                  <p className="text-xs text-muted-foreground truncate">AI Assistant · Powered by Gemini ✨</p>
+                  <p className="font-semibold text-sm">{t('chat_bot_name')}</p>
+                  <p className="text-xs text-muted-foreground truncate">{t('chat_bot_desc')}</p>
                 </div>
               </button>
 
@@ -799,7 +801,7 @@ Tell users you can help them navigate the platform.`
                         </span>
                       )}
                     </div>
-                    <p className="text-xs text-muted-foreground truncate">{conv.last_message || 'No messages yet'}</p>
+                    <p className="text-xs text-muted-foreground truncate">{conv.last_message || t('chat_no_messages')}</p>
                   </div>
                 </button>
               ))}
@@ -820,8 +822,8 @@ Tell users you can help them navigate the platform.`
                           <InteraXLogo className="h-full w-full object-contain" color="#000000" />
                         </div>
                         <div>
-                          <p className="font-semibold text-sm">InteraX CB ✨</p>
-                          <p className="text-[10px] text-emerald-500 font-medium">Online</p>
+                          <p className="font-semibold text-sm">{t('chat_bot_name')}</p>
+                          <p className="text-[10px] text-emerald-500 font-medium">{t('chat_online')}</p>
                         </div>
                       </>
                     ) : (
@@ -850,7 +852,7 @@ Tell users you can help them navigate the platform.`
                         className="border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground hidden sm:flex"
                       >
                         <div className="h-3.5 w-3.5 rounded-sm bg-current mr-2" />
-                        Stop
+                        {t('chat_stop_bot')}
                       </Button>
                     )}
                     {!isBotSelected && selectedConversation && (
@@ -860,10 +862,10 @@ Tell users you can help them navigate the platform.`
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-48">
                           <DropdownMenuItem className="text-destructive font-medium cursor-pointer focus:bg-destructive/10 focus:text-destructive" onClick={handleDeleteChat}>
-                            Delete Conversation
+                            {t('chat_delete_conv')}
                           </DropdownMenuItem>
                           <DropdownMenuItem className="text-muted-foreground cursor-not-allowed">
-                            Block User
+                            {t('chat_block_user')}
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -902,14 +904,14 @@ Tell users you can help them navigate the platform.`
                               isEmojiOnly 
                                 ? 'text-[80px] leading-none drop-shadow-xl animate-in zoom-in spin-in-2' 
                                 : cn('px-4 py-2 text-sm shadow-sm', isOwn 
-                                  ? 'bg-primary text-primary-foreground rounded-2xl rounded-tr-none' 
-                                  : 'bg-background border border-border rounded-2xl rounded-tl-none'
+                                  ? 'bg-gradient-to-r from-[#4B0082] to-[#6366f1] text-white rounded-2xl rounded-tr-none' 
+                                  : 'bg-background border border-border rounded-2xl rounded-tl-none text-foreground'
                                 )
                             )}>
                               {isOwn && (
                                 <div className="absolute top-1/2 -translate-y-1/2 -left-16 opacity-0 group-hover:opacity-100 flex items-center gap-1 bg-background border border-border shadow-md rounded-md p-1 transition-opacity z-10 text-foreground">
-                                  <button onClick={() => setEditingMsg(m.id)} className="px-1.5 py-0.5 hover:bg-secondary rounded text-xs font-semibold">Edit</button>
-                                  <button onClick={() => handleDeleteMsg(m.id)} className="px-1.5 py-0.5 hover:bg-secondary rounded text-xs font-semibold text-destructive">Del</button>
+                                  <button onClick={() => setEditingMsg(m.id)} className="px-1.5 py-0.5 hover:bg-secondary rounded text-xs font-semibold">{t('chat_edit_msg')}</button>
+                                  <button onClick={() => handleDeleteMsg(m.id)} className="px-1.5 py-0.5 hover:bg-secondary rounded text-xs font-semibold text-destructive">{t('chat_delete_msg')}</button>
                                 </div>
                               )}
                               
@@ -980,7 +982,7 @@ Tell users you can help them navigate the platform.`
                               <p className={cn("text-[10px] mt-1 flex items-center gap-1", isOwn ? "justify-end" : "justify-start", isEmojiOnly ? "text-muted-foreground opacity-100 font-medium drop-shadow-md bg-background/50 px-2 py-0.5 rounded-full inline-flex absolute -bottom-6 right-0" : (isOwn ? "text-white/80 opacity-60" : "text-muted-foreground opacity-60"))}>
                                 <span>{formatTimeAgo(m.created_at)}</span>
                                 {m.updated_at && new Date(m.updated_at).getTime() - new Date(m.created_at).getTime() > 1000 && (
-                                  <span>(edited)</span>
+                                  <span>{t('chat_edited')}</span>
                                 )}
                               </p>
                             </div>
@@ -1024,7 +1026,7 @@ Tell users you can help them navigate the platform.`
                     <div className="relative flex-1">
                       <Input
                         ref={inputRef}
-                        placeholder={isBotSelected ? "Ask InteraX CB anything..." : "Write a message..."}
+                        placeholder={isBotSelected ? t('chat_bot_placeholder') : t('chat_msg_placeholder')}
                         value={messageInput}
                         onChange={(e) => setMessageInput(e.target.value)}
                         onKeyDown={(e) => {
@@ -1085,9 +1087,9 @@ Tell users you can help them navigate the platform.`
                     <Sparkles className="h-5 w-5 text-[#4B0082]" />
                   </div>
                 </div>
-                <h2 className="text-2xl font-bold mb-3">Your Space for Connection</h2>
+                <h2 className="text-2xl font-bold mb-3">{t('chat_empty_title')}</h2>
                 <p className="text-muted-foreground max-w-sm mb-8 leading-relaxed">
-                  Start a private conversation with a friend or explore with <span className="text-primary font-semibold">InteraX CB</span>, your personal AI guide.
+                  {t('chat_empty_desc1')}<span className="text-primary font-semibold">{t('chat_bot_name')}</span>{t('chat_empty_desc2')}
                 </p>
                 <div className="grid grid-cols-2 gap-4 w-full max-w-md">
                   <Button
@@ -1095,7 +1097,7 @@ Tell users you can help them navigate the platform.`
                     className="h-12 gap-2 bg-gradient-to-r from-[#4B0082] to-[#E6E6FA] hover:from-[#CC1A3E] hover:to-[#4A0B34] text-white border-0 shadow-lg"
                   >
                     <Bot className="h-5 w-5" />
-                    Chat with AI
+                    {t('chat_with_ai')}
                   </Button>
                   <Button
                     variant="outline"
@@ -1103,7 +1105,7 @@ Tell users you can help them navigate the platform.`
                     className="h-12 gap-2 border-primary/20 hover:bg-primary/5"
                   >
                     <Plus className="h-5 w-5" />
-                    New Message
+                    {t('chat_new_message')}
                   </Button>
                 </div>
               </div>

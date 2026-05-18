@@ -132,7 +132,7 @@ export function Header() {
                 <Link href="/login">{t('nav_sign_in')}</Link>
               </Button>
               <Button size="sm" className="h-9 rounded-xl bg-gradient-to-r from-[#4B0082] to-[#9370DB] text-white border-0" asChild>
-                <Link href="/signup">Get Started</Link>
+                <Link href="/signup">{t('auth_signup_btn')}</Link>
               </Button>
             </div>
           )}

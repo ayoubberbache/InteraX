@@ -12,9 +12,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/frontend/components/
 import { RatingDisplay } from '@/frontend/components/rating/rating-display'
 import { PostCard } from '@/frontend/components/feed/post-card'
 import { toast } from 'sonner'
+import { useLanguage } from '@/backend/lib/i18n/context'
 
 export default function ProfilePage() {
   const { currentUser, isLoggedIn, refreshUser } = useAuth()
+  const { t } = useLanguage()
   const [posts, setPosts] = useState<any[]>([])
   const [pages, setPages] = useState<any[]>([])
   const [groups, setGroups] = useState<any[]>([])
@@ -79,9 +81,9 @@ export default function ProfilePage() {
     return (
       <MainLayout>
         <div className="flex flex-col items-center justify-center min-h-[50vh] p-4">
-          <p className="text-muted-foreground mb-4">Please sign in to view your profile</p>
+          <p className="text-muted-foreground mb-4">{t('profile_sign_in_msg')}</p>
           <Button asChild>
-            <Link href="/login">Sign In</Link>
+            <Link href="/login">{t('nav_sign_in')}</Link>
           </Button>
         </div>
       </MainLayout>
@@ -132,7 +134,7 @@ export default function ProfilePage() {
             <Button variant="outline" size="sm" asChild>
               <Link href="/settings">
                 <Settings className="h-4 w-4 mr-2" />
-                Edit Profile
+                {t('profile_edit')}
               </Link>
             </Button>
           </div>
@@ -142,15 +144,15 @@ export default function ProfilePage() {
         <div className="grid grid-cols-3 gap-4 mb-8 p-4 bg-secondary/20 rounded-2xl">
           <div className="text-center">
             <p className="text-xl font-bold">{formatNumber(currentUser.postsCount)}</p>
-            <p className="text-xs text-muted-foreground">Posts</p>
+            <p className="text-xs text-muted-foreground">{t('profile_posts')}</p>
           </div>
           <div className="text-center border-x border-border">
             <p className="text-xl font-bold">{formatNumber(currentUser.followers)}</p>
-            <p className="text-xs text-muted-foreground">Followers</p>
+            <p className="text-xs text-muted-foreground">{t('profile_followers')}</p>
           </div>
           <div className="text-center">
             <p className="text-xl font-bold">{formatNumber(currentUser.following)}</p>
-            <p className="text-xs text-muted-foreground">Following</p>
+            <p className="text-xs text-muted-foreground">{t('profile_following')}</p>
           </div>
         </div>
 
@@ -159,19 +161,19 @@ export default function ProfilePage() {
           <TabsList className="w-full justify-center border-t border-border rounded-none bg-transparent mb-6">
             <TabsTrigger value="posts" className="flex items-center gap-2 data-[state=active]:border-t-2 data-[state=active]:border-primary rounded-none">
               <Grid3X3 className="h-4 w-4" />
-              <span className="hidden sm:inline">Posts</span>
+              <span className="hidden sm:inline">{t('profile_tab_posts')}</span>
             </TabsTrigger>
             <TabsTrigger value="pages" className="flex items-center gap-2 data-[state=active]:border-t-2 data-[state=active]:border-primary rounded-none">
               <FileText className="h-4 w-4" />
-              <span className="hidden sm:inline">Pages</span>
+              <span className="hidden sm:inline">{t('profile_tab_pages')}</span>
             </TabsTrigger>
             <TabsTrigger value="groups" className="flex items-center gap-2 data-[state=active]:border-t-2 data-[state=active]:border-primary rounded-none">
               <Users className="h-4 w-4" />
-              <span className="hidden sm:inline">Groups</span>
+              <span className="hidden sm:inline">{t('profile_tab_groups')}</span>
             </TabsTrigger>
             <TabsTrigger value="saved" className="flex items-center gap-2 data-[state=active]:border-t-2 data-[state=active]:border-primary rounded-none">
               <Bookmark className="h-4 w-4" />
-              <span className="hidden sm:inline">Saved</span>
+              <span className="hidden sm:inline">{t('profile_tab_saved')}</span>
             </TabsTrigger>
           </TabsList>
 
@@ -189,10 +191,10 @@ export default function ProfilePage() {
                 <div className="h-16 w-16 bg-secondary/50 rounded-full flex items-center justify-center mb-4">
                   <ImagePlus className="h-8 w-8 text-muted-foreground" />
                 </div>
-                <h3 className="font-semibold mb-2">Share your first post</h3>
-                <p className="text-muted-foreground text-sm mb-4">When you share photos and videos, they'll appear here.</p>
+                <h3 className="font-semibold mb-2">{t('profile_empty_posts_title')}</h3>
+                <p className="text-muted-foreground text-sm mb-4">{t('profile_empty_posts_desc')}</p>
                 <Button asChild className="bg-gradient-to-r from-[#4B0082] to-[#9370DB] text-white rounded-full">
-                  <Link href="/create">Create Post</Link>
+                  <Link href="/create">{t('nav_create')}</Link>
                 </Button>
               </div>
             )}
@@ -217,7 +219,7 @@ export default function ProfilePage() {
             ) : (
               <div className="text-center py-12 text-muted-foreground">
                 <FileText className="h-12 w-12 mx-auto mb-4 opacity-30" />
-                <p>You haven't created any pages yet</p>
+                <p>{t('profile_empty_pages')}</p>
               </div>
             )}
           </TabsContent>
@@ -241,7 +243,7 @@ export default function ProfilePage() {
             ) : (
               <div className="text-center py-12 text-muted-foreground">
                 <Users className="h-12 w-12 mx-auto mb-4 opacity-30" />
-                <p>You haven't created or joined any groups</p>
+                <p>{t('profile_empty_groups')}</p>
               </div>
             )}
           </TabsContent>
@@ -260,7 +262,7 @@ export default function ProfilePage() {
             ) : (
               <div className="text-center py-12 text-muted-foreground">
                 <Bookmark className="h-12 w-12 mx-auto mb-4 opacity-30" />
-                <p>Your saved posts will appear here</p>
+                <p>{t('profile_empty_saved')}</p>
               </div>
             )}
           </TabsContent>

@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { PostCard } from './post-card'
 import { useAuth } from '@/backend/lib/auth-context'
+import { useLanguage } from '@/backend/lib/i18n/context'
 
 interface PostFeedProps {
   userId?: string
@@ -11,6 +12,7 @@ interface PostFeedProps {
 
 export function PostFeed({ userId: filterUserId, savedOnly }: PostFeedProps) {
   const { currentUser } = useAuth()
+  const { t } = useLanguage()
   const [posts, setPosts] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -84,13 +86,13 @@ export function PostFeed({ userId: filterUserId, savedOnly }: PostFeedProps) {
         <div className="h-16 w-16 rounded-full bg-destructive/10 flex items-center justify-center mb-4">
           <span className="text-2xl">⚠️</span>
         </div>
-        <p className="font-semibold text-foreground mb-1">Failed to load posts</p>
+        <p className="font-semibold text-foreground mb-1">{t('feed_error')}</p>
         <p className="text-sm text-muted-foreground mb-4">{error}</p>
         <button
           onClick={() => { setLoading(true); loadPosts() }}
           className="text-sm text-primary hover:underline"
         >
-          Try again
+          {t('feed_try_again')}
         </button>
       </div>
     )
@@ -102,8 +104,8 @@ export function PostFeed({ userId: filterUserId, savedOnly }: PostFeedProps) {
         <div className="h-16 w-16 rounded-full bg-secondary flex items-center justify-center mb-4">
           <span className="text-2xl">📭</span>
         </div>
-        <p className="font-semibold text-foreground mb-1">No posts yet</p>
-        <p className="text-sm text-muted-foreground">Be the first to share something!</p>
+        <p className="font-semibold text-foreground mb-1">{t('feed_empty')}</p>
+        <p className="text-sm text-muted-foreground">{t('feed_empty_desc')}</p>
       </div>
     )
   }

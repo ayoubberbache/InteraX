@@ -31,7 +31,7 @@ export function MainLayout({ children }: MainLayoutProps) {
         <main className={cn(
           "flex-1 md:ms-64",
           isFullWidth
-            ? "h-[calc(100vh-3.5rem)] overflow-hidden"
+            ? "h-[calc(100vh-7.5rem)] md:h-[calc(100vh-3.5rem)] overflow-hidden"
             : "min-h-screen pb-16 md:pb-0"
         )}>
           {children}

@@ -6,18 +6,21 @@ import { Home, Search, PlusSquare, MessageCircle, User } from 'lucide-react'
 import { cn } from '@/backend/lib/utils'
 import { useAuth } from '@/backend/lib/auth-context'
 import { useState, useEffect, useCallback } from 'react'
+import { useLanguage } from '@/backend/lib/i18n/context'
+import { TranslationKey } from '@/backend/lib/i18n/translations'
 
-const navItems = [
-  { href: '/', icon: Home, label: 'Home' },
-  { href: '/search', icon: Search, label: 'Search' },
-  { href: '/create', icon: PlusSquare, label: 'Create' },
-  { href: '/chat', icon: MessageCircle, label: 'Chat' },
-  { href: '/profile', icon: User, label: 'Profile' },
+const navItems: { href: string, icon: any, transKey: TranslationKey }[] = [
+  { href: '/', icon: Home, transKey: 'nav_home' },
+  { href: '/search', icon: Search, transKey: 'nav_explore' },
+  { href: '/create', icon: PlusSquare, transKey: 'nav_create' },
+  { href: '/chat', icon: MessageCircle, transKey: 'nav_messages' },
+  { href: '/profile', icon: User, transKey: 'nav_profile' },
 ]
 
 export function BottomNav() {
   const pathname = usePathname()
   const { isLoggedIn, currentUser } = useAuth()
+  const { t } = useLanguage()
   const [unreadCount, setUnreadCount] = useState(0)
 
   const fetchUnread = useCallback(async () => {
@@ -75,7 +78,7 @@ export function BottomNav() {
                   'text-[10px] font-medium mt-0.5 leading-none',
                   isActive ? 'text-primary' : 'text-muted-foreground'
                 )}>
-                  {item.label}
+                  {t(item.transKey)}
                 </span>
               </>
             )}

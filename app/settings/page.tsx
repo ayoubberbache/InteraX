@@ -119,11 +119,11 @@ export default function SettingsPage() {
       })
       if (!patchRes.ok) throw new Error('Failed to update db')
       if (refreshUser) await refreshUser()
-      toast.success('Avatar updated successfully')
+      toast.success(t('set_avatar_success'))
       setSelectedImage(null)
     } catch (err) {
       console.error(err)
-      toast.error('Failed to update avatar')
+      toast.error(t('set_avatar_error'))
     } finally {
       setIsUploading(false)
     }
@@ -160,10 +160,10 @@ export default function SettingsPage() {
       })
       if (!res.ok) throw new Error('Failed to update profile')
       if (refreshUser) await refreshUser()
-      toast.success('Profile updated successfully')
+      toast.success(t('set_profile_success'))
     } catch (err) {
       console.error(err)
-      toast.error('Failed to update profile')
+      toast.error(t('set_profile_error'))
     } finally {
       setIsSaving(false)
     }
@@ -184,45 +184,45 @@ export default function SettingsPage() {
               <div className="flex flex-col gap-2">
                 <div className="flex items-center gap-2">
                   <Button variant="outline" size="sm" disabled={isUploading} onClick={() => document.getElementById('avatar-upload')?.click()}>
-                    {isUploading ? 'Uploading...' : 'Change Photo'}
+                    {isUploading ? t('set_uploading') : t('set_change_photo')}
                   </Button>
                   <Button variant="ghost" size="sm" className="text-destructive hover:bg-destructive/10" onClick={handleRemovePhoto}>
-                    Remove
+                    {t('set_remove')}
                   </Button>
                   <input type="file" id="avatar-upload" className="hidden" accept="image/*" onChange={handleFileSelect} />
                 </div>
-                <p className="text-xs text-muted-foreground mt-1">JPG, PNG or GIF. Max 5MB.</p>
+                <p className="text-xs text-muted-foreground mt-1">{t('set_photo_hint')}</p>
               </div>
             </div>
             
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="name">Name</Label>
+                <Label htmlFor="name">{t('set_name')}</Label>
                 <Input 
                   id="name" 
                   value={name} 
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="Your name"
+                  placeholder={t('set_name_placeholder')}
                 />
               </div>
               
               <div className="space-y-2">
-                <Label htmlFor="username">Username</Label>
+                <Label htmlFor="username">{t('set_username')}</Label>
                 <Input 
                   id="username" 
                   value={username} 
                   onChange={(e) => setUsername(e.target.value)}
-                  placeholder="username"
+                  placeholder={t('set_username_placeholder')}
                 />
               </div>
               
               <div className="space-y-2">
-                <Label htmlFor="bio">Bio</Label>
+                <Label htmlFor="bio">{t('set_bio')}</Label>
                 <Textarea 
                   id="bio" 
                   value={bio} 
                   onChange={(e) => setBio(e.target.value)}
-                  placeholder="Tell us about yourself..."
+                  placeholder={t('set_bio_placeholder')}
                   rows={3}
                 />
               </div>
@@ -232,7 +232,7 @@ export default function SettingsPage() {
                 onClick={handleSaveChanges} 
                 disabled={isSaving}
               >
-                {isSaving ? 'Saving...' : 'Save Changes'}
+                {isSaving ? t('set_saving') : t('set_save_changes')}
               </Button>
             </div>
           </div>
@@ -242,14 +242,14 @@ export default function SettingsPage() {
         return (
           <div className="space-y-6">
             <div className="space-y-4">
-              <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Channels</h3>
+              <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">{t('set_channels')}</h3>
               
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <Smartphone className="h-5 w-5 text-muted-foreground" />
                   <div>
-                    <Label>Push Notifications</Label>
-                    <p className="text-sm text-muted-foreground">Receive notifications on your device</p>
+                    <Label>{t('set_push_notif')}</Label>
+                    <p className="text-sm text-muted-foreground">{t('set_push_notif_desc')}</p>
                   </div>
                 </div>
                 <Switch checked={pushEnabled} onCheckedChange={setPushEnabled} />
@@ -259,8 +259,8 @@ export default function SettingsPage() {
                 <div className="flex items-center gap-3">
                   <Mail className="h-5 w-5 text-muted-foreground" />
                   <div>
-                    <Label>Email Notifications</Label>
-                    <p className="text-sm text-muted-foreground">Receive email updates</p>
+                    <Label>{t('set_email_notif')}</Label>
+                    <p className="text-sm text-muted-foreground">{t('set_email_notif_desc')}</p>
                   </div>
                 </div>
                 <Switch checked={emailEnabled} onCheckedChange={setEmailEnabled} />
@@ -270,8 +270,8 @@ export default function SettingsPage() {
                 <div className="flex items-center gap-3">
                   <Volume2 className="h-5 w-5 text-muted-foreground" />
                   <div>
-                    <Label>Sound</Label>
-                    <p className="text-sm text-muted-foreground">Play sound for notifications</p>
+                    <Label>{t('set_sound')}</Label>
+                    <p className="text-sm text-muted-foreground">{t('set_sound_desc')}</p>
                   </div>
                 </div>
                 <Switch checked={soundEnabled} onCheckedChange={setSoundEnabled} />
@@ -281,25 +281,25 @@ export default function SettingsPage() {
             <Separator />
             
             <div className="space-y-4">
-              <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Activity</h3>
+              <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">{t('set_activity')}</h3>
               
               <div className="flex items-center justify-between">
-                <Label>Likes</Label>
+                <Label>{t('set_likes')}</Label>
                 <Switch checked={likesNotif} onCheckedChange={setLikesNotif} />
               </div>
               
               <div className="flex items-center justify-between">
-                <Label>Comments</Label>
+                <Label>{t('set_comments')}</Label>
                 <Switch checked={commentsNotif} onCheckedChange={setCommentsNotif} />
               </div>
               
               <div className="flex items-center justify-between">
-                <Label>New Followers</Label>
+                <Label>{t('set_new_followers')}</Label>
                 <Switch checked={followsNotif} onCheckedChange={setFollowsNotif} />
               </div>
               
               <div className="flex items-center justify-between">
-                <Label>Direct Messages</Label>
+                <Label>{t('set_direct_messages')}</Label>
                 <Switch checked={messagesNotif} onCheckedChange={setMessagesNotif} />
               </div>
             </div>
@@ -310,14 +310,14 @@ export default function SettingsPage() {
         return (
           <div className="space-y-6">
             <div className="space-y-4">
-              <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Account Privacy</h3>
+              <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">{t('set_account_privacy')}</h3>
               
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <Lock className="h-5 w-5 text-muted-foreground" />
                   <div>
-                    <Label>Private Account</Label>
-                    <p className="text-sm text-muted-foreground">Only approved followers can see your posts</p>
+                    <Label>{t('set_private_account')}</Label>
+                    <p className="text-sm text-muted-foreground">{t('set_private_account_desc')}</p>
                   </div>
                 </div>
                 <Switch checked={privateAccount} onCheckedChange={setPrivateAccount} />
@@ -327,8 +327,8 @@ export default function SettingsPage() {
                 <div className="flex items-center gap-3">
                   <Eye className="h-5 w-5 text-muted-foreground" />
                   <div>
-                    <Label>Activity Status</Label>
-                    <p className="text-sm text-muted-foreground">Show when you are active</p>
+                    <Label>{t('set_activity_status')}</Label>
+                    <p className="text-sm text-muted-foreground">{t('set_activity_status_desc')}</p>
                   </div>
                 </div>
                 <Switch checked={showActivity} onCheckedChange={setShowActivity} />
@@ -338,8 +338,8 @@ export default function SettingsPage() {
                 <div className="flex items-center gap-3">
                   <Shield className="h-5 w-5 text-muted-foreground" />
                   <div>
-                    <Label>Allow Tags</Label>
-                    <p className="text-sm text-muted-foreground">Let others tag you in posts</p>
+                    <Label>{t('set_allow_tags')}</Label>
+                    <p className="text-sm text-muted-foreground">{t('set_allow_tags_desc')}</p>
                   </div>
                 </div>
                 <Switch checked={allowTags} onCheckedChange={setAllowTags} />
@@ -349,20 +349,20 @@ export default function SettingsPage() {
             <Separator />
             
             <div className="space-y-4">
-              <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Security</h3>
+              <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">{t('set_security')}</h3>
               
               <Button variant="outline" className="w-full justify-between">
-                Change Password
+                {t('set_change_password')}
                 <ChevronRight className="h-4 w-4" />
               </Button>
               
               <Button variant="outline" className="w-full justify-between">
-                Two-Factor Authentication
+                {t('set_2fa')}
                 <ChevronRight className="h-4 w-4" />
               </Button>
               
               <Button variant="outline" className="w-full justify-between">
-                Login Activity
+                {t('set_login_activity')}
                 <ChevronRight className="h-4 w-4" />
               </Button>
             </div>
@@ -373,7 +373,7 @@ export default function SettingsPage() {
         return (
           <div className="space-y-6">
             <div className="space-y-4">
-              <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Theme</h3>
+              <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">{t('set_theme')}</h3>
               
               <div className="grid grid-cols-3 gap-3">
                 <button
@@ -383,7 +383,7 @@ export default function SettingsPage() {
                   }`}
                 >
                   <Sun className="h-6 w-6" />
-                  <span className="text-sm font-medium">Light</span>
+                  <span className="text-sm font-medium">{t('set_theme_light')}</span>
                 </button>
                 
                 <button
@@ -393,7 +393,7 @@ export default function SettingsPage() {
                   }`}
                 >
                   <Moon className="h-6 w-6" />
-                  <span className="text-sm font-medium">Dark</span>
+                  <span className="text-sm font-medium">{t('set_theme_dark')}</span>
                 </button>
                 
                 <button
@@ -403,7 +403,7 @@ export default function SettingsPage() {
                   }`}
                 >
                   <Monitor className="h-6 w-6" />
-                  <span className="text-sm font-medium">System</span>
+                  <span className="text-sm font-medium">{t('set_theme_system')}</span>
                 </button>
               </div>
             </div>
@@ -472,8 +472,8 @@ export default function SettingsPage() {
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
           <div className="bg-card w-full max-w-lg rounded-2xl overflow-hidden flex flex-col shadow-2xl">
             <div className="p-4 border-b font-semibold flex justify-between items-center bg-background">
-              <span>Adjust Photo</span>
-              <Button variant="ghost" size="sm" onClick={() => setSelectedImage(null)}>Cancel</Button>
+              <span>{t('set_adjust_photo')}</span>
+              <Button variant="ghost" size="sm" onClick={() => setSelectedImage(null)}>{t('set_cancel')}</Button>
             </div>
             <div className="relative w-full h-[400px] bg-black/90">
               <Cropper
@@ -490,7 +490,7 @@ export default function SettingsPage() {
             </div>
             <div className="p-6 space-y-6 bg-background">
               <div className="flex items-center gap-4">
-                <span className="text-sm font-medium">Zoom</span>
+                <span className="text-sm font-medium">{t('set_zoom')}</span>
                 <input
                   type="range"
                   value={zoom}
@@ -503,7 +503,7 @@ export default function SettingsPage() {
                 />
               </div>
               <Button className="w-full rounded-full" onClick={handleUploadPhoto} disabled={isUploading}>
-                {isUploading ? 'Applying...' : 'Apply & Save Avatar'}
+                {isUploading ? t('set_applying') : t('set_apply_save')}
               </Button>
             </div>
           </div>
@@ -553,11 +553,11 @@ export default function SettingsPage() {
             <CardHeader>
               <CardTitle>{menuItems.find(m => m.id === activeSection)?.label}</CardTitle>
               <CardDescription>
-                {activeSection === 'profile' && 'Manage your profile information'}
-                {activeSection === 'notifications' && 'Control how you receive notifications'}
-                {activeSection === 'privacy' && 'Manage your privacy and security settings'}
-                {activeSection === 'appearance' && 'Customize how the app looks'}
-                {activeSection === 'language' && 'Choose your preferred language'}
+                {activeSection === 'profile' && t('set_profile_desc')}
+                {activeSection === 'notifications' && t('set_notif_desc')}
+                {activeSection === 'privacy' && t('set_privacy_desc')}
+                {activeSection === 'appearance' && t('set_appearance_desc')}
+                {activeSection === 'language' && t('lang_desc')}
               </CardDescription>
             </CardHeader>
             <CardContent>

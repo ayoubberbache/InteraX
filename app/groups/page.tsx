@@ -14,11 +14,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { cn } from '@/backend/lib/utils'
 import { toast } from 'sonner'
 import { useAuth } from '@/backend/lib/auth-context'
+import { useLanguage } from '@/backend/lib/i18n/context'
 
 const categories = ['All', 'Photography', 'Food & Drink', 'Technology', 'Health & Fitness', 'Art & Design', 'Travel', 'General']
 
 export default function GroupsPage() {
   const { currentUser } = useAuth()
+  const { t } = useLanguage()
   const [selectedCategory, setSelectedCategory] = useState('All')
   const [searchQuery, setSearchQuery] = useState('')
   const [groups, setGroups] = useState<any[]>([])
@@ -107,24 +109,24 @@ export default function GroupsPage() {
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight mb-1">Discover Groups</h1>
-            <p className="text-muted-foreground">Find communities that share your interests</p>
+            <h1 className="text-3xl font-bold tracking-tight mb-1">{t('discover_groups')}</h1>
+            <p className="text-muted-foreground">{t('discover_groups_desc')}</p>
           </div>
           
           <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
             <DialogTrigger asChild>
               <Button className="rounded-full bg-gradient-to-r from-[#4B0082] to-[#9370DB] text-white shadow-lg hover:shadow-primary/20 transition-all">
                 <Plus className="h-4 w-4 mr-2" />
-                Create New Group
+                {t('create_btn')}
               </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[425px]">
               <DialogHeader>
-                <DialogTitle>Create a Community</DialogTitle>
+                <DialogTitle>{t('group_create_community')}</DialogTitle>
               </DialogHeader>
               <div className="grid gap-4 py-4">
                 <div className="grid gap-2">
-                  <Label htmlFor="name">Group Name</Label>
+                  <Label htmlFor="name">{t('group_name')}</Label>
                   <Input 
                     id="name" 
                     placeholder="e.g. Campus Photography" 
@@ -133,13 +135,13 @@ export default function GroupsPage() {
                   />
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="category">Category</Label>
+                  <Label htmlFor="category">{t('category')}</Label>
                   <Select 
                     value={newGroup.category} 
                     onValueChange={v => setNewGroup(prev => ({ ...prev, category: v }))}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Select a category" />
+                      <SelectValue placeholder={t('group_category_placeholder')} />
                     </SelectTrigger>
                     <SelectContent>
                       {categories.filter(c => c !== 'All').map(c => (
@@ -149,7 +151,7 @@ export default function GroupsPage() {
                   </Select>
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="description">Description (optional)</Label>
+                  <Label htmlFor="description">{t('description')}</Label>
                   <Textarea 
                     id="description" 
                     placeholder="What is this group about?" 
@@ -159,13 +161,13 @@ export default function GroupsPage() {
                 </div>
               </div>
               <DialogFooter>
-                <Button variant="outline" onClick={() => setIsCreateOpen(false)}>Cancel</Button>
+                <Button variant="outline" onClick={() => setIsCreateOpen(false)}>{t('post_cancel')}</Button>
                 <Button 
                   onClick={handleCreateGroup}
                   disabled={!newGroup.name}
                   className="bg-primary text-primary-foreground"
                 >
-                  Create Group
+                  {t('create_group')}
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -176,7 +178,7 @@ export default function GroupsPage() {
         <div className="relative mb-6">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search groups by name or topic..."
+            placeholder={t('group_search_placeholder')}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full h-12 rounded-xl bg-secondary/50 pl-10 border-none focus-visible:ring-1 focus-visible:ring-primary/20"
@@ -230,8 +232,8 @@ export default function GroupsPage() {
             <div className="h-16 w-16 bg-secondary/50 rounded-full flex items-center justify-center mb-4">
               <Users className="h-8 w-8 text-muted-foreground" />
             </div>
-            <h3 className="text-lg font-semibold">No groups found</h3>
-            <p className="text-muted-foreground max-w-xs mx-auto">Try adjusting your search or category filters to find what you&apos;re looking for.</p>
+            <h3 className="text-lg font-semibold">{t('group_no_groups')}</h3>
+            <p className="text-muted-foreground max-w-xs mx-auto">{t('group_try_adjusting')}</p>
           </div>
         )}
       </div>

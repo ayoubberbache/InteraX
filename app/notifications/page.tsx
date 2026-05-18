@@ -12,6 +12,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/frontend/components/ui/av
 import { Card, CardContent } from '@/frontend/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/frontend/components/ui/tabs'
 import { cn } from '@/backend/lib/utils'
+import { useLanguage } from '@/backend/lib/i18n/context'
 
 interface Notification {
   id: string
@@ -32,6 +33,7 @@ const POLL_INTERVAL = 5000 // 5 seconds
 export default function NotificationsPage() {
   const router = useRouter()
   const { currentUser, isLoggedIn } = useAuth()
+  const { t } = useLanguage()
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [activeTab, setActiveTab] = useState('all')
   const [lastFetchedAt, setLastFetchedAt] = useState<Date | null>(null)
@@ -128,43 +130,43 @@ export default function NotificationsPage() {
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-2xl font-bold flex items-center gap-2">
-              Notifications
+              {t('notif_title')}
               <span className="text-[10px] font-normal text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-full animate-pulse">
-                ● Live
+                ● {t('notif_live')}
               </span>
             </h1>
             {lastFetchedAt && (
               <p className="text-xs text-muted-foreground/60 mt-0.5">
-                Updated {formatTimeAgo(lastFetchedAt.toISOString())}
+                {t('notif_updated')} {formatTimeAgo(lastFetchedAt.toISOString())}
               </p>
             )}
             {unreadCount > 0 && (
               <p className="text-sm text-muted-foreground mt-1">
-                {unreadCount} unread notification{unreadCount !== 1 ? 's' : ''}
+                {unreadCount} {unreadCount === 1 ? t('notif_unread_singular') : t('notif_unread_plural')}
               </p>
             )}
           </div>
           {unreadCount > 0 && (
             <Button variant="outline" size="sm" onClick={markAllAsRead}>
               <Check className="h-4 w-4 mr-2" />
-              Mark all read
+              {t('notif_mark_all_read')}
             </Button>
           )}
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="grid w-full grid-cols-4 mb-6">
-            <TabsTrigger value="all">All</TabsTrigger>
+            <TabsTrigger value="all">{t('notif_tab_all')}</TabsTrigger>
             <TabsTrigger value="unread" className="relative">
-              Unread
+              {t('notif_tab_unread')}
               {unreadCount > 0 && (
                 <span className="ml-1.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-primary text-xs text-primary-foreground">
                   {unreadCount > 9 ? '9+' : unreadCount}
                 </span>
               )}
             </TabsTrigger>
-            <TabsTrigger value="like">Likes</TabsTrigger>
-            <TabsTrigger value="follow">Follows</TabsTrigger>
+            <TabsTrigger value="like">{t('notif_tab_likes')}</TabsTrigger>
+            <TabsTrigger value="follow">{t('notif_tab_follows')}</TabsTrigger>
           </TabsList>
 
           <TabsContent value={activeTab} className="mt-0">
@@ -174,11 +176,11 @@ export default function NotificationsPage() {
                   <div className="h-16 w-16 rounded-full bg-secondary flex items-center justify-center mx-auto mb-4">
                     <Bell className="h-8 w-8 text-muted-foreground" />
                   </div>
-                  <h3 className="font-semibold mb-2">No notifications</h3>
+                  <h3 className="font-semibold mb-2">{t('notif_empty_title')}</h3>
                   <p className="text-muted-foreground text-sm">
                     {activeTab === 'unread'
-                      ? "You're all caught up!"
-                      : "When you get notifications, they'll show up here"}
+                      ? t('notif_empty_unread')
+                      : t('notif_empty_all')}
                   </p>
                 </CardContent>
               </Card>

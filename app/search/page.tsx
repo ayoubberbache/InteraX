@@ -12,9 +12,11 @@ import { RatingDisplay } from '@/frontend/components/rating/rating-display'
 import { GroupCard } from '@/frontend/components/groups/group-card'
 import { useAuth } from '@/backend/lib/auth-context'
 import { toast } from 'sonner'
+import { useLanguage } from '@/backend/lib/i18n/context'
 
 export default function SearchPage() {
   const { currentUser } = useAuth()
+  const { t } = useLanguage()
   const [query, setQuery] = useState('')
   const [filteredUsers, setFilteredUsers] = useState<any[]>([])
   const [filteredPosts, setFilteredPosts] = useState<any[]>([])
@@ -102,10 +104,10 @@ export default function SearchPage() {
       if (res.ok) {
         const data = await res.json()
         setFollowingMap(prev => ({ ...prev, [userId]: data.isFollowing }))
-        toast.success(data.isFollowing ? `Following ${userName}` : `Unfollowed ${userName}`)
+        toast.success(data.isFollowing ? `${t('search_following')} ${userName}` : userName)
       } else {
         setFollowingMap(prev => ({ ...prev, [userId]: wasFollowing }))
-        toast.error('Failed to update')
+        toast.error(t('search_failed_update'))
       }
     } catch {
       setFollowingMap(prev => ({ ...prev, [userId]: wasFollowing }))
@@ -139,7 +141,7 @@ export default function SearchPage() {
               onClick={() => handleFollow(user.id, user.full_name)}
               disabled={loadingFollow === user.id}
             >
-              {isFollowing ? <><UserCheck className="h-3 w-3 mr-1" />Following</> : <><UserPlus className="h-3 w-3 mr-1" />Follow</>}
+              {isFollowing ? <><UserCheck className="h-3 w-3 mr-1" />{t('search_following')}</> : <><UserPlus className="h-3 w-3 mr-1" />{t('search_follow')}</>}
             </Button>
           )}
         </div>
@@ -182,7 +184,7 @@ export default function SearchPage() {
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
           <input
             type="search"
-            placeholder="Search users, posts, groups..."
+            placeholder={t('search_placeholder')}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             className="w-full h-12 rounded-xl border border-border bg-background px-4 pl-11 text-base text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-all"
@@ -193,17 +195,17 @@ export default function SearchPage() {
         {query ? (
           <Tabs defaultValue="all">
             <TabsList className="mb-6">
-              <TabsTrigger value="all">All</TabsTrigger>
-              <TabsTrigger value="users">Users ({filteredUsers.length})</TabsTrigger>
-              <TabsTrigger value="posts">Posts ({filteredPosts.length})</TabsTrigger>
-              <TabsTrigger value="groups">Groups ({filteredGroups.length})</TabsTrigger>
+              <TabsTrigger value="all">{t('search_tab_all')}</TabsTrigger>
+              <TabsTrigger value="users">{t('search_tab_users')} ({filteredUsers.length})</TabsTrigger>
+              <TabsTrigger value="posts">{t('search_tab_posts')} ({filteredPosts.length})</TabsTrigger>
+              <TabsTrigger value="groups">{t('search_tab_groups')} ({filteredGroups.length})</TabsTrigger>
             </TabsList>
 
             {/* All tab */}
             <TabsContent value="all" className="space-y-6">
               {filteredUsers.length > 0 && (
                 <div>
-                  <h3 className="font-semibold mb-3 text-sm uppercase tracking-wider text-muted-foreground">People</h3>
+                  <h3 className="font-semibold mb-3 text-sm uppercase tracking-wider text-muted-foreground">{t('search_tab_users')}</h3>
                   <div className="space-y-1">
                     {filteredUsers.slice(0, 3).map(user => <UserRow key={user.id} user={user} />)}
                   </div>
@@ -211,7 +213,7 @@ export default function SearchPage() {
               )}
               {filteredPosts.length > 0 && (
                 <div>
-                  <h3 className="font-semibold mb-3 text-sm uppercase tracking-wider text-muted-foreground">Posts</h3>
+                  <h3 className="font-semibold mb-3 text-sm uppercase tracking-wider text-muted-foreground">{t('search_tab_posts')}</h3>
                   <div className="grid grid-cols-3 gap-1">
                     {filteredPosts.slice(0, 6).map(post => <PostCard key={post.id} post={post} />)}
                   </div>
@@ -219,7 +221,7 @@ export default function SearchPage() {
               )}
               {filteredGroups.length > 0 && (
                 <div>
-                  <h3 className="font-semibold mb-3 text-sm uppercase tracking-wider text-muted-foreground">Groups</h3>
+                  <h3 className="font-semibold mb-3 text-sm uppercase tracking-wider text-muted-foreground">{t('search_tab_groups')}</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {filteredGroups.slice(0, 2).map(group => <GroupCard key={group.id} group={group} />)}
                   </div>
@@ -227,7 +229,7 @@ export default function SearchPage() {
               )}
               {filteredUsers.length === 0 && filteredPosts.length === 0 && filteredGroups.length === 0 && (
                 <div className="text-center py-12 text-muted-foreground">
-                  No results found for &quot;{query}&quot;
+                  {t('search_no_results')} &quot;{query}&quot;
                 </div>
               )}
             </TabsContent>
@@ -239,7 +241,7 @@ export default function SearchPage() {
                   {filteredUsers.map(user => <UserRow key={user.id} user={user} />)}
                 </div>
               ) : (
-                <div className="text-center py-12 text-muted-foreground">No users found</div>
+                <div className="text-center py-12 text-muted-foreground">{t('search_no_users')}</div>
               )}
             </TabsContent>
 
@@ -250,7 +252,7 @@ export default function SearchPage() {
                   {filteredPosts.map(post => <PostCard key={post.id} post={post} />)}
                 </div>
               ) : (
-                <div className="text-center py-12 text-muted-foreground">No posts found</div>
+                <div className="text-center py-12 text-muted-foreground">{t('search_no_posts')}</div>
               )}
             </TabsContent>
 
@@ -261,7 +263,7 @@ export default function SearchPage() {
                   {filteredGroups.map(group => <GroupCard key={group.id} group={group} />)}
                 </div>
               ) : (
-                <div className="text-center py-12 text-muted-foreground">No groups found</div>
+                <div className="text-center py-12 text-muted-foreground">{t('search_no_groups')}</div>
               )}
             </TabsContent>
           </Tabs>
@@ -270,7 +272,7 @@ export default function SearchPage() {
           <div className="space-y-8">
             {/* Suggested users */}
             <div>
-              <h3 className="font-semibold mb-4">Suggested People</h3>
+              <h3 className="font-semibold mb-4">{t('search_suggested_people')}</h3>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 {suggestedUsers.map(user => (
                   <Link
@@ -292,13 +294,13 @@ export default function SearchPage() {
 
             {/* All public posts */}
             <div>
-              <h3 className="font-semibold mb-4">Explore Posts</h3>
+              <h3 className="font-semibold mb-4">{t('search_explore_posts')}</h3>
               {explorePosts.length > 0 ? (
                 <div className="grid grid-cols-3 gap-1">
                   {explorePosts.map(post => <PostCard key={post.id} post={post} />)}
                 </div>
               ) : (
-                <div className="text-center py-8 text-muted-foreground text-sm">No posts yet</div>
+                <div className="text-center py-8 text-muted-foreground text-sm">{t('search_no_posts')}</div>
               )}
             </div>
           </div>

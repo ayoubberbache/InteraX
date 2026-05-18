@@ -14,11 +14,13 @@ import { cn } from '@/backend/lib/utils'
 import { toast } from 'sonner'
 import Link from 'next/link'
 import { useAuth } from '@/backend/lib/auth-context'
+import { useLanguage } from '@/backend/lib/i18n/context'
 
 const categories = ['All', 'Creator', 'Business', 'Education', 'Entertainment', 'Science', 'Gaming', 'Other']
 
 export default function PagesDirPage() {
   const { currentUser } = useAuth()
+  const { t } = useLanguage()
   const [selectedCategory, setSelectedCategory] = useState('All')
   const [searchQuery, setSearchQuery] = useState('')
   const [pages, setPages] = useState<any[]>([])
@@ -41,11 +43,11 @@ export default function PagesDirPage() {
         setPages(data)
       }
     } catch (err) {
-      toast.error('Failed to load pages')
+      toast.error(t('pages_load_err'))
     } finally {
       setIsLoading(false)
     }
-  }, [])
+  }, [t])
 
   useEffect(() => {
     loadPages()
@@ -60,21 +62,21 @@ export default function PagesDirPage() {
         body: JSON.stringify({ ...newPage, userId: currentUser?.id })
       })
       if (res.ok) {
-        toast.success('Your Page is live!')
+        toast.success(t('pages_create_success'))
         setIsCreateOpen(false)
         setNewPage({ name: '', handle: '', description: '', category: 'Creator' })
         loadPages()
       } else {
         const data = await res.json()
-        toast.error(data.error || 'Failed to create page')
+        toast.error(data.error || t('pages_create_err'))
       }
     } catch (err) {
-      toast.error('An error occurred')
+      toast.error(t('pages_generic_err'))
     }
   }
 
   const handleDeletePage = async (pageId: string) => {
-    if (!confirm('Delete this page permanently? This cannot be undone.')) return
+    if (!confirm(t('pages_delete_confirm'))) return
     try {
       const res = await fetch(`/api/pages?id=${pageId}&userId=${currentUser?.id}`, {
         method: 'DELETE',
@@ -82,13 +84,13 @@ export default function PagesDirPage() {
       })
       if (res.ok) {
         setPages(prev => prev.filter(p => p.id !== pageId))
-        toast.success('Page deleted')
+        toast.success(t('pages_delete_success'))
       } else {
         const data = await res.json()
-        toast.error(data.error || 'Failed to delete page')
+        toast.error(data.error || t('pages_delete_err'))
       }
     } catch {
-      toast.error('Connection error')
+      toast.error(t('pages_conn_err'))
     }
   }
 
@@ -104,32 +106,32 @@ export default function PagesDirPage() {
       <div className="p-4 md:p-6 max-w-6xl mx-auto">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight mb-1">InteraX Pages</h1>
-            <p className="text-muted-foreground">Showcase your work and build your brand</p>
+            <h1 className="text-3xl font-bold tracking-tight mb-1">{t('pages_title')}</h1>
+            <p className="text-muted-foreground">{t('pages_subtitle')}</p>
           </div>
           
           <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
             <DialogTrigger asChild>
               <Button className="rounded-full px-6 bg-gradient-to-r from-[#4B0082] to-[#6366f1] text-white">
                 <Plus className="h-4 w-4 mr-2" />
-                Create Page
+                {t('pages_create_btn')}
               </Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Start your InteraX Page</DialogTitle>
+                <DialogTitle>{t('pages_create_modal_title')}</DialogTitle>
               </DialogHeader>
               <div className="space-y-4 py-4">
                 <div className="space-y-2">
-                  <Label>Page Name</Label>
-                  <Input placeholder="e.g. Creative Studio" value={newPage.name} onChange={e => setNewPage(p => ({ ...p, name: e.target.value }))} />
+                  <Label>{t('pages_name_label')}</Label>
+                  <Input placeholder={t('pages_name_placeholder')} value={newPage.name} onChange={e => setNewPage(p => ({ ...p, name: e.target.value }))} />
                 </div>
                 <div className="space-y-2">
-                  <Label>Handle (@)</Label>
-                  <Input placeholder="unique-handle" value={newPage.handle} onChange={e => setNewPage(p => ({ ...p, handle: e.target.value }))} />
+                  <Label>{t('pages_handle_label')}</Label>
+                  <Input placeholder={t('pages_handle_placeholder')} value={newPage.handle} onChange={e => setNewPage(p => ({ ...p, handle: e.target.value }))} />
                 </div>
                 <div className="space-y-2">
-                  <Label>Category</Label>
+                  <Label>{t('pages_category_label')}</Label>
                   <select 
                     className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm"
                     value={newPage.category}
@@ -139,12 +141,12 @@ export default function PagesDirPage() {
                   </select>
                 </div>
                 <div className="space-y-2">
-                  <Label>Description</Label>
-                  <Textarea placeholder="Tell people what your page is about..." value={newPage.description} onChange={e => setNewPage(p => ({ ...p, description: e.target.value }))} />
+                  <Label>{t('pages_desc_label')}</Label>
+                  <Textarea placeholder={t('pages_desc_placeholder')} value={newPage.description} onChange={e => setNewPage(p => ({ ...p, description: e.target.value }))} />
                 </div>
               </div>
               <DialogFooter>
-                <Button onClick={handleCreatePage} className="w-full">Initialize Page</Button>
+                <Button onClick={handleCreatePage} className="w-full">{t('pages_init_btn')}</Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
@@ -153,7 +155,7 @@ export default function PagesDirPage() {
         <div className="relative mb-8">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search creators and brands..."
+            placeholder={t('pages_search_placeholder')}
             className="pl-10 h-12 rounded-xl bg-secondary/50 border-none"
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
@@ -195,11 +197,11 @@ export default function PagesDirPage() {
                     <div>
                       <h3 className="font-bold text-lg mb-0.5 group-hover:text-primary transition-colors">{page.name}</h3>
                       <p className="text-xs text-muted-foreground mb-3 font-mono">@{page.handle}</p>
-                      <p className="text-sm text-muted-foreground line-clamp-2 mb-4 h-10">{page.description || 'InteraX Official Page'}</p>
+                      <p className="text-sm text-muted-foreground line-clamp-2 mb-4 h-10">{page.description || t('pages_default_desc')}</p>
                     </div>
                     <div className="flex items-center justify-between text-xs pt-4 border-t border-border">
                       <div className="flex gap-4">
-                        <span className="text-muted-foreground"><strong className="text-foreground">0</strong> followed</span>
+                        <span className="text-muted-foreground"><strong className="text-foreground">0</strong> {t('pages_followed')}</span>
                       </div>
                       <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
                     </div>

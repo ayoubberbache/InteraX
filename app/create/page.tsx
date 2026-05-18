@@ -14,10 +14,12 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/frontend/components/ui/av
 import { uploadMedia } from '@/backend/lib/upload'
 import { cn } from '@/backend/lib/utils'
 import { toast } from 'sonner'
+import { useLanguage } from '@/backend/lib/i18n/context'
 
 export default function CreatePage() {
   const router = useRouter()
   const { currentUser, isLoggedIn } = useAuth()
+  const { t } = useLanguage()
   const [caption, setCaption] = useState('')
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
@@ -33,10 +35,10 @@ export default function CreatePage() {
           <div className="h-20 w-20 bg-secondary/50 rounded-full flex items-center justify-center mb-6">
              <UploadCloud className="h-10 w-10 text-muted-foreground" />
           </div>
-          <h2 className="text-2xl font-bold mb-2">Sign in to share</h2>
-          <p className="text-muted-foreground mb-8 max-w-sm">Join the InteraX community to share your moments, music, and stories.</p>
+          <h2 className="text-2xl font-bold mb-2">{t('create_sign_in')}</h2>
+          <p className="text-muted-foreground mb-8 max-w-sm">{t('create_sign_in_desc')}</p>
           <Button asChild className="rounded-full px-8 bg-gradient-to-r from-[#4B0082] to-[#9370DB]">
-            <Link href="/login">Sign In to Continue</Link>
+            <Link href="/login">{t('create_sign_in_btn')}</Link>
           </Button>
         </div>
       </MainLayout>
@@ -53,12 +55,12 @@ export default function CreatePage() {
 
   const handlePost = async () => {
     if (!selectedFile && !caption.trim()) {
-      toast.error('Please add a caption or select a media file')
+      toast.error(t('create_empty_err'))
       return
     }
 
     if (!currentUser?.id) {
-      toast.error('You must be logged in to post')
+      toast.error(t('create_login_err'))
       return
     }
 
@@ -94,10 +96,10 @@ export default function CreatePage() {
       }
 
       setUploadProgress(100)
-      toast.success('Expression shared! ✨')
+      toast.success(t('create_success'))
       router.push('/')
     } catch (err: any) {
-      toast.error(err.message || 'Failed to post. Check your connection.')
+      toast.error(err.message || t('create_fail'))
     } finally {
       setIsPosting(false)
       setUploadProgress(0)
@@ -115,12 +117,12 @@ export default function CreatePage() {
           <Button variant="ghost" size="sm" asChild className="rounded-full">
             <Link href="/">
               <ArrowLeft className="h-4 w-4 mr-2" />
-              Discard
+              {t('create_discard')}
             </Link>
           </Button>
           <div className="flex items-center gap-2">
              <Sparkles className="h-5 w-5 text-primary animate-pulse" />
-             <h1 className="text-xl font-bold tracking-tight">Create Post</h1>
+             <h1 className="text-xl font-bold tracking-tight">{t('create_post_title')}</h1>
           </div>
           <Button
             size="sm"
@@ -133,7 +135,7 @@ export default function CreatePage() {
                  : "bg-secondary text-muted-foreground"
             )}
           >
-            {isPosting ? (selectedFile ? 'Uploading...' : 'Posting...') : 'Post'}
+            {isPosting ? (selectedFile ? t('create_uploading') : t('create_posting')) : t('post_btn_post')}
           </Button>
         </div>
 
@@ -151,7 +153,7 @@ export default function CreatePage() {
               </div>
 
               <Textarea
-                placeholder="Share your thoughts..."
+                placeholder={t('post_share_thoughts')}
                 value={caption}
                 onChange={(e) => setCaption(e.target.value)}
                 className="min-h-[60px] border-none focus-visible:ring-0 p-0 text-base leading-relaxed resize-none shadow-none bg-transparent"
@@ -219,7 +221,7 @@ export default function CreatePage() {
           {isPosting && (
             <div className="mt-4 pt-4 border-t border-border/50">
                <div className="flex justify-between text-muted-foreground text-xs mb-2 px-1">
-                  <span>{selectedFile ? 'Uploading media...' : 'Posting...'}</span>
+                  <span>{selectedFile ? t('create_uploading') : t('create_posting')}</span>
                   <span>{uploadProgress}%</span>
                </div>
                <div className="h-1.5 w-full bg-secondary rounded-full overflow-hidden">

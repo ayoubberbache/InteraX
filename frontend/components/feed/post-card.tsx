@@ -17,6 +17,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/frontend/components/u
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/frontend/components/ui/dialog'
 import { cn } from '@/backend/lib/utils'
 import { toast } from 'sonner'
+import { useLanguage } from '@/backend/lib/i18n/context'
 
 interface PostCardProps {
   post: any
@@ -25,6 +26,7 @@ interface PostCardProps {
 
 export function PostCard({ post, onDelete }: PostCardProps) {
   const { currentUser } = useAuth()
+  const { t } = useLanguage()
   const [isLiked, setIsLiked] = useState(post.is_liked ?? false)
   const [selectedReact, setSelectedReact] = useState<string | null>(post.reaction || null)
   const [likesCount, setLikesCount] = useState(post.likes || 0)
@@ -89,7 +91,7 @@ export function PostCard({ post, onDelete }: PostCardProps) {
 
   const handleDeletePost = async () => {
     if (!currentUser) return
-    if (!confirm('Delete this post permanently?')) return
+    if (!confirm(t('post_delete_confirm'))) return
     try {
       const res = await fetch(`/api/posts?id=${post.id}&userId=${currentUser.id}`, {
         method: 'DELETE',
@@ -355,12 +357,12 @@ export function PostCard({ post, onDelete }: PostCardProps) {
                 onClick={handleDeletePost}
               >
                 <Trash2 className="h-4 w-4 mr-2" />
-                Delete Post
+                {t('post_delete_btn')}
               </DropdownMenuItem>
             )}
             {!isOwner && (
               <DropdownMenuItem className="text-muted-foreground cursor-not-allowed" disabled>
-                Report Post
+                {t('post_report_btn')}
               </DropdownMenuItem>
             )}
           </DropdownMenuContent>
@@ -411,7 +413,7 @@ export function PostCard({ post, onDelete }: PostCardProps) {
                   onClick={() => setCaptionExpanded(p => !p)}
                   className="text-xs font-semibold text-primary mt-1 hover:underline"
                 >
-                  {captionExpanded ? 'Show less' : 'Show more'}
+                  {captionExpanded ? t('post_show_less') : t('post_show_more')}
                 </button>
               )}
             </div>
@@ -437,7 +439,7 @@ export function PostCard({ post, onDelete }: PostCardProps) {
                 onClick={(e) => { e.stopPropagation(); setCaptionExpanded(p => !p) }}
                 className="text-xs font-semibold text-primary mt-2 self-start hover:underline"
               >
-                {captionExpanded ? 'Show less' : 'Show more'}
+                {captionExpanded ? t('post_show_less') : t('post_show_more')}
               </button>
             )}
             {likeAnim && (
@@ -503,7 +505,7 @@ export function PostCard({ post, onDelete }: PostCardProps) {
                     className="flex items-center gap-2 w-full px-4 py-2.5 text-sm rounded-lg hover:bg-secondary transition-colors mb-1"
                   >
                     <Send className="h-4 w-4" />
-                    <span className="text-xs">Send as message</span>
+                    <span className="text-xs">{t('post_share_msg')}</span>
                   </button>
                   <button
                     onClick={handleCopyLink}
@@ -512,12 +514,12 @@ export function PostCard({ post, onDelete }: PostCardProps) {
                     {copied ? (
                       <>
                         <Check className="h-4 w-4 text-emerald-500" />
-                        <span className="text-emerald-500 font-medium text-xs">Link copied!</span>
+                        <span className="text-emerald-500 font-medium text-xs">{t('post_link_copied')}</span>
                       </>
                     ) : (
                       <>
                         <Link2 className="h-4 w-4" />
-                        <span className="text-xs">Copy link</span>
+                        <span className="text-xs">{t('post_copy_link')}</span>
                       </>
                     )}
                   </button>
@@ -526,7 +528,7 @@ export function PostCard({ post, onDelete }: PostCardProps) {
                     className="flex items-center gap-2 w-full px-4 py-1 text-xs rounded-lg hover:bg-red-50 text-red-500 transition-colors mt-1"
                   >
                     <X className="h-3 w-3" />
-                    <span>Cancel</span>
+                    <span>{t('post_cancel')}</span>
                   </button>
                 </div>
               )}
@@ -545,7 +547,7 @@ export function PostCard({ post, onDelete }: PostCardProps) {
               </Button>
               {showRating && (
                 <div className="absolute right-0 bottom-full mb-3 z-30 bg-popover border border-border rounded-2xl p-4 shadow-2xl animate-in fade-in slide-in-from-bottom-4 min-w-[200px]">
-                  <p className="text-xs font-semibold mb-3 text-center">Quality Rating</p>
+                  <p className="text-xs font-semibold mb-3 text-center">{t('post_quality_rating')}</p>
                   <div className="flex justify-center">
                     <StarRating
                       rating={userRating}
@@ -554,8 +556,8 @@ export function PostCard({ post, onDelete }: PostCardProps) {
                     />
                   </div>
                   <div className="mt-3 pt-3 border-t border-border flex justify-between items-center text-[10px] text-muted-foreground uppercase tracking-widest px-1">
-                    <span>Authentic</span>
-                    <span>High Quality</span>
+                    <span>{t('post_authentic')}</span>
+                    <span>{t('post_high_quality')}</span>
                   </div>
                 </div>
               )}
@@ -578,7 +580,7 @@ export function PostCard({ post, onDelete }: PostCardProps) {
 
         {/* Info — likes count only; caption shown above for photo posts */}
         <div className="space-y-1 w-full px-1">
-          <p className="text-sm font-bold tracking-tight">{formatNumber(likesCount)} positive vibes</p>
+          <p className="text-sm font-bold tracking-tight">{formatNumber(likesCount)} {t('post_positive_vibes')}</p>
 
           {/* For photo-only posts (no caption shown above), show username inline */}
           {!hasContent && (
@@ -597,7 +599,7 @@ export function PostCard({ post, onDelete }: PostCardProps) {
                   className="text-xs font-medium text-muted-foreground hover:text-primary transition-colors"
                   onClick={() => setShowAllComments(true)}
                 >
-                  View all {comments.length} expressions
+                  {t('post_view_all_expr')} {comments.length} {t('post_expressions')}
                 </button>
               )}
               {displayedComments.map(comment => (
@@ -611,7 +613,7 @@ export function PostCard({ post, onDelete }: PostCardProps) {
                   className="text-xs font-medium text-muted-foreground hover:text-primary transition-colors"
                   onClick={() => setShowAllComments(false)}
                 >
-                  Show less
+                  {t('post_show_less')}
                 </button>
               )}
             </div>
@@ -633,7 +635,7 @@ export function PostCard({ post, onDelete }: PostCardProps) {
                 <input
                   ref={commentInputRef}
                   type="text"
-                  placeholder="Share your thoughts..."
+                  placeholder={t('post_share_thoughts')}
                   value={commentText}
                   onChange={(e) => setCommentText(e.target.value)}
                   onKeyDown={handleCommentKeyDown}
@@ -667,7 +669,7 @@ export function PostCard({ post, onDelete }: PostCardProps) {
                   onClick={handleAddComment}
                   className="text-primary font-bold hover:bg-primary/10"
                 >
-                  Post
+                  {t('post_btn_post')}
                 </Button>
               )}
             </div>
@@ -679,7 +681,7 @@ export function PostCard({ post, onDelete }: PostCardProps) {
       <Dialog open={internalShareOpen} onOpenChange={setInternalShareOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Share to Chat</DialogTitle>
+            <DialogTitle>{t('post_share_chat_title')}</DialogTitle>
           </DialogHeader>
           <div className="py-4 space-y-2 max-h-[300px] overflow-y-auto pr-2">
             {loadingConvs ? (
@@ -700,11 +702,11 @@ export function PostCard({ post, onDelete }: PostCardProps) {
                       <p className="font-medium text-sm truncate">{conv.is_group ? conv.group_name : conv.other_user?.full_name}</p>
                     </div>
                   </div>
-                  <Button size="sm" variant="secondary" className="h-8 rounded-full ml-3 shrink-0">Send</Button>
+                  <Button size="sm" variant="secondary" className="h-8 rounded-full ml-3 shrink-0">{t('post_share_send')}</Button>
                 </button>
               ))
             ) : (
-              <p className="text-center text-muted-foreground text-sm">No conversations found.</p>
+              <p className="text-center text-muted-foreground text-sm">{t('post_no_convos')}</p>
             )}
           </div>
         </DialogContent>

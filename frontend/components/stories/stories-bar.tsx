@@ -8,9 +8,11 @@ import { useAuth } from '@/backend/lib/auth-context'
 import { Avatar, AvatarFallback, AvatarImage } from '@/frontend/components/ui/avatar'
 import { cn } from '@/backend/lib/utils'
 import { uploadMedia } from '@/backend/lib/upload'
+import { useLanguage } from '@/backend/lib/i18n/context'
 
 export function StoriesBar() {
   const { currentUser } = useAuth()
+  const { t } = useLanguage()
   const [stories, setStories] = useState<any[]>([])
   const [selectedStory, setSelectedStory] = useState<any | null>(null)
   const [viewedStories, setViewedStories] = useState<Set<string>>(new Set())
@@ -140,7 +142,7 @@ export function StoriesBar() {
                 </div>
               </button>
               <span className="text-xs text-muted-foreground truncate w-16 text-center">
-                {isUploading ? 'Uploading...' : 'Your story'}
+                {isUploading ? t('story_uploading') : t('story_your_story')}
               </span>
             </div>
           )}
