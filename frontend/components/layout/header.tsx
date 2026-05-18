@@ -94,8 +94,8 @@ export function Header() {
                 </Link>
               </Button>
 
-              {/* Bell + Chat icons — hidden on mobile (in bottom nav) */}
-              <Button variant="ghost" size="icon" className="hidden md:inline-flex h-9 w-9 rounded-xl relative" asChild>
+              {/* Bell — visible on all screen sizes */}
+              <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl relative" asChild>
                 <Link href="/notifications">
                   <Bell className="h-[18px] w-[18px]" />
                   {unreadCount > 0 && (
@@ -106,6 +106,7 @@ export function Header() {
                 </Link>
               </Button>
 
+              {/* Chat — desktop only (bottom nav handles mobile) */}
               <Button variant="ghost" size="icon" className="hidden md:inline-flex h-9 w-9 rounded-xl" asChild>
                 <Link href="/chat">
                   <MessageCircle className="h-[18px] w-[18px]" />

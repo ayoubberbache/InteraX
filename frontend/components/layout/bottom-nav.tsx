@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Home, Search, PlusSquare, MessageCircle, Bell, User } from 'lucide-react'
+import { Home, Search, PlusSquare, MessageCircle, User } from 'lucide-react'
 import { cn } from '@/backend/lib/utils'
 import { useAuth } from '@/backend/lib/auth-context'
 import { useState, useEffect, useCallback } from 'react'
@@ -11,7 +11,7 @@ const navItems = [
   { href: '/', icon: Home, label: 'Home' },
   { href: '/search', icon: Search, label: 'Search' },
   { href: '/create', icon: PlusSquare, label: 'Create' },
-  { href: '/notifications', icon: Bell, label: 'Alerts' },
+  { href: '/chat', icon: MessageCircle, label: 'Chat' },
   { href: '/profile', icon: User, label: 'Profile' },
 ]
 
@@ -70,11 +70,6 @@ export function BottomNav() {
                     'h-[22px] w-[22px] transition-colors',
                     isActive ? 'text-primary' : 'text-muted-foreground'
                   )} />
-                  {item.href === '/notifications' && unreadCount > 0 && (
-                    <span className="absolute -top-1 -right-1.5 min-w-[15px] h-[15px] rounded-full bg-primary text-primary-foreground text-[9px] font-bold flex items-center justify-center px-0.5 leading-none">
-                      {unreadCount > 9 ? '9+' : unreadCount}
-                    </span>
-                  )}
                 </div>
                 <span className={cn(
                   'text-[10px] font-medium mt-0.5 leading-none',
