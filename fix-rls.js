@@ -1,14 +1,20 @@
+const fs = require('fs');
 const { Client } = require('pg');
 
 async function fixStorageRLS() {
+  const envLocal = fs.readFileSync('.env.local', 'utf8');
+  const dbUrlLine = envLocal.split('\n').find(line => line.trim().startsWith('DATABASE_URL='));
+  const dbUrl = dbUrlLine.split('=').slice(1).join('=').trim().replace(/['"]/g, '');
+
+  console.log('Connecting to database using pooler URL...');
   const client = new Client({
-    connectionString: "postgresql://postgres:InteraX2026!Secure@db.ysspdumydtjzjkunkyak.supabase.co:5432/postgres",
+    connectionString: dbUrl,
     ssl: { rejectUnauthorized: false }
   });
 
   try {
     await client.connect();
-    console.log('Connected to Supabase Postgres to fix RLS...');
+    console.log('Connected successfully!');
 
     // 1. Give public access to SELECT (just in case)
     await client.query(`

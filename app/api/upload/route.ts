@@ -1,6 +1,5 @@
 import { NextResponse, NextRequest } from 'next/server'
-import { writeFile, mkdir } from 'fs/promises'
-import { join } from 'path'
+import { supabase } from '@/backend/lib/supabase'
 
 export async function POST(req: NextRequest) {
   try {
@@ -16,18 +15,28 @@ export async function POST(req: NextRequest) {
 
     if (file) {
       const bytes = await file.arrayBuffer()
-      const buffer = Buffer.from(bytes)
       
       const fileExt = file.name.split('.').pop()?.toLowerCase() || 'bin'
       const uniqueName = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}.${fileExt}`
       
-      const uploadDir = join(process.cwd(), 'public', 'uploads')
-      await mkdir(uploadDir, { recursive: true })
-      
-      const filePath = join(uploadDir, uniqueName)
-      await writeFile(filePath, buffer)
-      
-      finalMediaUrl = `/uploads/${uniqueName}`
+      const { data: storageData, error: storageErr } = await supabase.storage
+        .from('uploads')
+        .upload(uniqueName, bytes, {
+          contentType: file.type || 'application/octet-stream',
+          cacheControl: '3600',
+          upsert: false
+        })
+
+      if (storageErr) {
+        throw new Error('Supabase Storage upload failed: ' + storageErr.message)
+      }
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('uploads')
+        .getPublicUrl(uniqueName)
+
+      finalMediaUrl = publicUrl
     }
 
     if (!finalMediaUrl) {
