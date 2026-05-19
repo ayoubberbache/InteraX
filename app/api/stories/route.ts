@@ -10,7 +10,10 @@ export async function GET(req: NextRequest) {
     if (viewerId) {
       stories = await query(`
         SELECT s.*, 
-               u.full_name as user_name, u.username as user_username, u.avatar_url as user_avatar, u.is_verified as user_verified
+               u.full_name as user_name, u.username as user_username, u.avatar_url as user_avatar, u.is_verified as user_verified,
+               EXISTS (
+                 SELECT 1 FROM story_views WHERE story_id = s.id AND user_id = $1
+               ) as is_viewed
         FROM stories s
         LEFT JOIN users u ON s.user_id = u.id
         WHERE s.expires_at > NOW()
@@ -22,7 +25,8 @@ export async function GET(req: NextRequest) {
     } else {
       stories = await query(`
         SELECT s.*, 
-               u.full_name as user_name, u.username as user_username, u.avatar_url as user_avatar, u.is_verified as user_verified
+               u.full_name as user_name, u.username as user_username, u.avatar_url as user_avatar, u.is_verified as user_verified,
+               false as is_viewed
         FROM stories s
         LEFT JOIN users u ON s.user_id = u.id
         WHERE s.expires_at > NOW()
@@ -36,6 +40,7 @@ export async function GET(req: NextRequest) {
       userId: story.user_id,
       imageUrl: story.image_url,
       timestamp: story.created_at,
+      isViewed: story.is_viewed || false,
       author: {
         id: story.user_id,
         name: story.user_name,

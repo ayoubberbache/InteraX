@@ -30,6 +30,12 @@ export function StoriesBar() {
           return a.userId.localeCompare(b.userId)
         })
         setStories(data)
+        
+        // Populate viewed stories from database flag
+        const dbViewed = new Set<string>(
+          data.filter((s: any) => s.isViewed).map((s: any) => s.id)
+        )
+        setViewedStories(dbViewed)
       }
     } catch (err) {
       console.error('Failed to load stories', err)
@@ -37,25 +43,24 @@ export function StoriesBar() {
   }
 
   useEffect(() => {
-    if (!currentUser) return
-    try {
-      const stored = localStorage.getItem(`interax_viewed_stories_${currentUser.id}`)
-      if (stored) {
-        setViewedStories(new Set(JSON.parse(stored)))
-      } else {
-        setViewedStories(new Set())
-      }
-    } catch (e) {}
     loadStories()
   }, [currentUser?.id])
 
-  const markViewed = (id: string) => {
+  const markViewed = async (id: string) => {
     if (!currentUser) return
-    setViewedStories(prev => {
-      const next = new Set(prev).add(id)
-      localStorage.setItem(`interax_viewed_stories_${currentUser.id}`, JSON.stringify(Array.from(next)))
-      return next
-    })
+    setViewedStories(prev => new Set(prev).add(id))
+    try {
+      await fetch('/api/stories/view', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: currentUser.id,
+          storyId: id
+        })
+      })
+    } catch (err) {
+      console.error('Failed to save story view in database', err)
+    }
   }
 
   const handleStoryClick = (story: any) => {
