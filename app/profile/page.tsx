@@ -13,6 +13,7 @@ import { RatingDisplay } from '@/frontend/components/rating/rating-display'
 import { PostCard } from '@/frontend/components/feed/post-card'
 import { toast } from 'sonner'
 import { useLanguage } from '@/backend/lib/i18n/context'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/frontend/components/ui/dialog'
 
 export default function ProfilePage() {
   const { currentUser, isLoggedIn, refreshUser } = useAuth()
@@ -24,6 +25,32 @@ export default function ProfilePage() {
   const [loadingPosts, setLoadingPosts] = useState(true)
 
   const [activeTab, setActiveTab] = useState('posts')
+
+  // Relations Modal state
+  const [relationsOpen, setRelationsOpen] = useState(false)
+  const [relationsType, setRelationsType] = useState<'followers' | 'following'>('followers')
+  const [relationsList, setRelationsList] = useState<any[]>([])
+  const [relationsLoading, setRelationsLoading] = useState(false)
+
+  const fetchRelations = async (type: 'followers' | 'following') => {
+    if (!currentUser) return
+    setRelationsType(type)
+    setRelationsOpen(true)
+    setRelationsLoading(true)
+    try {
+      const res = await fetch(`/api/users/relations?userId=${currentUser.id}&type=${type}`)
+      if (res.ok) {
+        const { data } = await res.json()
+        setRelationsList(data || [])
+      } else {
+        setRelationsList([])
+      }
+    } catch {
+      setRelationsList([])
+    } finally {
+      setRelationsLoading(false)
+    }
+  }
 
   useEffect(() => {
     if (activeTab === 'saved' && currentUser) {
@@ -146,14 +173,20 @@ export default function ProfilePage() {
             <p className="text-xl font-bold">{formatNumber(currentUser.postsCount)}</p>
             <p className="text-xs text-muted-foreground">{t('profile_posts')}</p>
           </div>
-          <div className="text-center border-x border-border">
+          <button 
+            className="text-center border-x border-border cursor-pointer hover:opacity-80 transition-opacity outline-none"
+            onClick={() => fetchRelations('followers')}
+          >
             <p className="text-xl font-bold">{formatNumber(currentUser.followers)}</p>
             <p className="text-xs text-muted-foreground">{t('profile_followers')}</p>
-          </div>
-          <div className="text-center">
+          </button>
+          <button 
+            className="text-center cursor-pointer hover:opacity-80 transition-opacity outline-none"
+            onClick={() => fetchRelations('following')}
+          >
             <p className="text-xl font-bold">{formatNumber(currentUser.following)}</p>
             <p className="text-xs text-muted-foreground">{t('profile_following')}</p>
-          </div>
+          </button>
         </div>
 
         {/* Tabs */}
@@ -268,6 +301,55 @@ export default function ProfilePage() {
           </TabsContent>
         </Tabs>
       </div>
+      {/* Followers / Following Dialog */}
+      <Dialog open={relationsOpen} onOpenChange={setRelationsOpen}>
+        <DialogContent className="sm:max-w-md bg-background border border-border rounded-2xl p-6 shadow-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold capitalize">
+              {relationsType === 'followers' ? t('profile_followers') : t('profile_following')}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-4 space-y-4 max-h-[400px] overflow-y-auto pr-2">
+            {relationsLoading ? (
+              <div className="flex justify-center p-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+              </div>
+            ) : relationsList.length > 0 ? (
+              <div className="space-y-4">
+                {relationsList.map(rel => (
+                  <div key={rel.id} className="flex items-center justify-between">
+                    <Link 
+                      href={`/profile/${rel.id}`}
+                      onClick={() => setRelationsOpen(false)}
+                      className="flex items-center gap-3 flex-1 min-w-0 hover:opacity-80 transition-opacity"
+                    >
+                      <Avatar className="h-10 w-10 ring-1 ring-border">
+                        <AvatarImage src={rel.avatar_url || undefined} alt={rel.full_name} className="object-cover" />
+                        <AvatarFallback className="bg-primary/10 text-primary font-semibold">
+                          {rel.full_name?.[0]}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-sm text-foreground truncate flex items-center gap-1">
+                          {rel.full_name}
+                          {rel.is_verified && (
+                            <span className="text-blue-500 text-xs">✓</span>
+                          )}
+                        </p>
+                        <p className="text-xs text-muted-foreground truncate">@{rel.username}</p>
+                      </div>
+                    </Link>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground text-sm">
+                No {relationsType === 'followers' ? t('profile_followers') : t('profile_following')} found
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </MainLayout>
   )
 }

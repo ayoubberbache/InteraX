@@ -13,6 +13,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/frontend/components/
 import { StarRating } from '@/frontend/components/rating/star-rating'
 import { RatingDisplay } from '@/frontend/components/rating/rating-display'
 import { toast } from 'sonner'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/frontend/components/ui/dialog'
+import { cn } from '@/backend/lib/utils'
 
 export default function UserProfilePage(props: { params: Promise<{ id: string }> }) {
   const params = use(props.params)
@@ -26,6 +28,35 @@ export default function UserProfilePage(props: { params: Promise<{ id: string }>
   const [userRating, setUserRating] = useState(0)
   const [showRating, setShowRating] = useState(false)
   const [notFound, setNotFound] = useState(false)
+
+  // Relations Modal state
+  const [relationsOpen, setRelationsOpen] = useState(false)
+  const [relationsType, setRelationsType] = useState<'followers' | 'following'>('followers')
+  const [relationsList, setRelationsList] = useState<any[]>([])
+  const [relationsLoading, setRelationsLoading] = useState(false)
+
+  const fetchRelations = async (type: 'followers' | 'following') => {
+    if (user.is_private && !isOwnProfile && followStatus !== 'accepted') {
+      return
+    }
+    
+    setRelationsType(type)
+    setRelationsOpen(true)
+    setRelationsLoading(true)
+    try {
+      const res = await fetch(`/api/users/relations?userId=${params.id}&type=${type}`)
+      if (res.ok) {
+        const { data } = await res.json()
+        setRelationsList(data || [])
+      } else {
+        setRelationsList([])
+      }
+    } catch {
+      setRelationsList([])
+    } finally {
+      setRelationsLoading(false)
+    }
+  }
 
   const fetchUser = useCallback(async () => {
     try {
@@ -207,14 +238,28 @@ export default function UserProfilePage(props: { params: Promise<{ id: string }>
                 <p className="font-semibold">{userPosts.length}</p>
                 <p className="text-sm text-muted-foreground">posts</p>
               </div>
-              <div className="text-center">
+              <button 
+                className={cn(
+                  "text-center cursor-pointer hover:opacity-80 transition-opacity outline-none", 
+                  (user.is_private && !isOwnProfile && followStatus !== 'accepted') && "cursor-not-allowed opacity-50 pointer-events-none"
+                )}
+                onClick={() => fetchRelations('followers')}
+                disabled={user.is_private && !isOwnProfile && followStatus !== 'accepted'}
+              >
                 <p className="font-semibold">{formatNumber(user.followers_count || 0)}</p>
                 <p className="text-sm text-muted-foreground">followers</p>
-              </div>
-              <div className="text-center">
+              </button>
+              <button 
+                className={cn(
+                  "text-center cursor-pointer hover:opacity-80 transition-opacity outline-none", 
+                  (user.is_private && !isOwnProfile && followStatus !== 'accepted') && "cursor-not-allowed opacity-50 pointer-events-none"
+                )}
+                onClick={() => fetchRelations('following')}
+                disabled={user.is_private && !isOwnProfile && followStatus !== 'accepted'}
+              >
                 <p className="font-semibold">{formatNumber(user.following_count || 0)}</p>
                 <p className="text-sm text-muted-foreground">following</p>
-              </div>
+              </button>
             </div>
 
             <div className="space-y-1">
@@ -302,6 +347,55 @@ export default function UserProfilePage(props: { params: Promise<{ id: string }>
           </Tabs>
         )}
       </div>
+      {/* Followers / Following Dialog */}
+      <Dialog open={relationsOpen} onOpenChange={setRelationsOpen}>
+        <DialogContent className="sm:max-w-md bg-background border border-border rounded-2xl p-6 shadow-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold capitalize">
+              {relationsType === 'followers' ? 'Followers' : 'Following'}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-4 space-y-4 max-h-[400px] overflow-y-auto pr-2">
+            {relationsLoading ? (
+              <div className="flex justify-center p-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+              </div>
+            ) : relationsList.length > 0 ? (
+              <div className="space-y-4">
+                {relationsList.map(rel => (
+                  <div key={rel.id} className="flex items-center justify-between">
+                    <Link 
+                      href={`/profile/${rel.id}`}
+                      onClick={() => setRelationsOpen(false)}
+                      className="flex items-center gap-3 flex-1 min-w-0 hover:opacity-80 transition-opacity"
+                    >
+                      <Avatar className="h-10 w-10 ring-1 ring-border">
+                        <AvatarImage src={rel.avatar_url || undefined} alt={rel.full_name} className="object-cover" />
+                        <AvatarFallback className="bg-primary/10 text-primary font-semibold">
+                          {rel.full_name?.[0]}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-sm text-foreground truncate flex items-center gap-1">
+                          {rel.full_name}
+                          {rel.is_verified && (
+                            <span className="text-blue-500 text-xs">✓</span>
+                          )}
+                        </p>
+                        <p className="text-xs text-muted-foreground truncate">@{rel.username}</p>
+                      </div>
+                    </Link>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground text-sm">
+                No {relationsType} found
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </MainLayout>
   )
 }
