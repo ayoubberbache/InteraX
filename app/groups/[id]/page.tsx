@@ -133,7 +133,7 @@ export default function GroupPage(props: { params: Promise<{ id: string }> }) {
       if (res.ok) {
         const data = await res.json()
         setIsJoined(data.joined)
-        setGroup(prev => prev ? { ...prev, members_count: prev.members_count + (data.joined ? 1 : -1) } : prev)
+        setGroup((prev: any) => prev ? { ...prev, members_count: prev.members_count + (data.joined ? 1 : -1) } : prev)
       }
     } catch (err) {
       console.error(err)

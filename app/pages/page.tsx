@@ -201,7 +201,7 @@ export default function PagesDirPage() {
                     </div>
                     <div className="flex items-center justify-between text-xs pt-4 border-t border-border">
                       <div className="flex gap-4">
-                        <span className="text-muted-foreground"><strong className="text-foreground">0</strong> {t('pages_followed')}</span>
+                        <span className="text-muted-foreground"><strong className="text-foreground">{page.followers_count || 0}</strong> {t('pages_followed')}</span>
                       </div>
                       <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
                     </div>

@@ -15,7 +15,7 @@ export const translations = {
     nav_sign_in: 'Sign In',
     
     // Header
-    search_placeholder: 'Search InteraX...',
+    search_placeholder: 'Search users, posts, groups...',
     
     // Settings menu
     set_edit_profile: 'Edit Profile',
@@ -94,7 +94,6 @@ export const translations = {
     feed_empty_desc: 'Be the first to share something!',
     
     // Search
-    search_placeholder: 'Search users, posts, groups...',
     search_tab_all: 'All',
     search_tab_users: 'Users',
     search_tab_posts: 'Posts',
@@ -186,11 +185,6 @@ export const translations = {
     // Settings sections
     lang_title: 'Language',
     lang_desc: 'Choose your preferred language',
-    set_edit_profile: 'Edit Profile',
-    set_notifications: 'Notifications',
-    set_privacy: 'Privacy & Security',
-    set_appearance: 'Appearance',
-    set_language: 'Language',
     
     // Settings Profile
     set_profile_desc: 'Manage your profile information',
@@ -253,21 +247,6 @@ export const translations = {
     set_zoom: 'Zoom',
     set_applying: 'Applying...',
     set_apply_save: 'Apply & Save Avatar',
-    
-    // Notifications
-    notif_title: 'Notifications',
-    notif_live: 'Live',
-    notif_updated: 'Updated',
-    notif_unread_singular: 'unread notification',
-    notif_unread_plural: 'unread notifications',
-    notif_mark_all_read: 'Mark all read',
-    notif_tab_all: 'All',
-    notif_tab_unread: 'Unread',
-    notif_tab_likes: 'Likes',
-    notif_tab_follows: 'Follows',
-    notif_empty_title: 'No notifications',
-    notif_empty_unread: 'You\'re all caught up!',
-    notif_empty_all: 'When you get notifications, they\'ll show up here',
 
     // Profile
     profile_sign_in_msg: 'Please sign in to view your profile',
@@ -291,7 +270,8 @@ export const translations = {
     post_report_btn: 'Report Post',
     post_show_more: 'Show more',
     post_show_less: 'Show less',
-    post_positive_vibes: 'positive vibes',
+    post_likes_count: 'likes',
+    post_reacted_users_title: 'Reactions',
     post_view_all_expr: 'View all',
     post_expressions: 'expressions',
     post_share_thoughts: 'Share your thoughts...',
@@ -321,7 +301,7 @@ export const translations = {
     nav_sign_in: 'Se connecter',
     
     // Header
-    search_placeholder: 'Rechercher sur InteraX...',
+    search_placeholder: 'Rechercher des utilisateurs, des publications, des groupes...',
     
     // Settings menu
     set_edit_profile: 'Modifier le profil',
@@ -400,7 +380,6 @@ export const translations = {
     feed_empty_desc: 'Soyez le premier à partager quelque chose !',
     
     // Search
-    search_placeholder: 'Rechercher des utilisateurs, des publications, des groupes...',
     search_tab_all: 'Tout',
     search_tab_users: 'Utilisateurs',
     search_tab_posts: 'Publications',
@@ -492,11 +471,6 @@ export const translations = {
     // Settings sections
     lang_title: 'Langue',
     lang_desc: 'Choisissez votre langue préférée',
-    set_edit_profile: 'Éditer le profil',
-    set_notifications: 'Notifications',
-    set_privacy: 'Confidentialité et sécurité',
-    set_appearance: 'Apparence',
-    set_language: 'Langue',
     
     // Settings Profile
     set_profile_desc: 'Gérez les informations de votre profil',
@@ -559,21 +533,6 @@ export const translations = {
     set_zoom: 'Zoom',
     set_applying: 'Application en cours...',
     set_apply_save: 'Appliquer et enregistrer l\'avatar',
-    
-    // Notifications
-    notif_title: 'Notifications',
-    notif_live: 'En direct',
-    notif_updated: 'Mis à jour',
-    notif_unread_singular: 'notification non lue',
-    notif_unread_plural: 'notifications non lues',
-    notif_mark_all_read: 'Tout marquer comme lu',
-    notif_tab_all: 'Tout',
-    notif_tab_unread: 'Non lu',
-    notif_tab_likes: 'J\'aime',
-    notif_tab_follows: 'Abonnements',
-    notif_empty_title: 'Aucune notification',
-    notif_empty_unread: 'Vous êtes à jour !',
-    notif_empty_all: 'Quand vous aurez des notifications, elles apparaîtront ici',
 
     // Profile
     profile_sign_in_msg: 'Veuillez vous connecter pour voir votre profil',
@@ -597,7 +556,8 @@ export const translations = {
     post_report_btn: 'Signaler',
     post_show_more: 'Afficher plus',
     post_show_less: 'Afficher moins',
-    post_positive_vibes: 'ondes positives',
+    post_likes_count: "mention(s) J'aime",
+    post_reacted_users_title: 'Réactions',
     post_view_all_expr: 'Voir les',
     post_expressions: 'expressions',
     post_share_thoughts: 'Partagez vos pensées...',
@@ -627,7 +587,7 @@ export const translations = {
     nav_sign_in: 'تسجيل الدخول',
     
     // Header
-    search_placeholder: 'البحث في InteraX...',
+    search_placeholder: 'ابحث عن المستخدمين، المنشورات، المجموعات...',
     
     // Settings menu
     set_edit_profile: 'تعديل الملف الشخصي',
@@ -706,7 +666,6 @@ export const translations = {
     feed_empty_desc: 'كن أول من يشارك شيئاً!',
     
     // Search
-    search_placeholder: 'ابحث عن المستخدمين، المنشورات، المجموعات...',
     search_tab_all: 'الكل',
     search_tab_users: 'مستخدمون',
     search_tab_posts: 'منشورات',
@@ -798,11 +757,6 @@ export const translations = {
     // Settings sections
     lang_title: 'اللغة',
     lang_desc: 'اختر لغتك المفضلة',
-    set_edit_profile: 'تعديل الملف الشخصي',
-    set_notifications: 'الإشعارات',
-    set_privacy: 'الخصوصية والأمان',
-    set_appearance: 'المظهر',
-    set_language: 'اللغة',
     
     // Settings Profile
     set_profile_desc: 'إدارة معلومات ملفك الشخصي',
@@ -866,21 +820,6 @@ export const translations = {
     set_applying: 'جاري التطبيق...',
     set_apply_save: 'تطبيق وحفظ الصورة الرمزية',
     
-    // Notifications
-    notif_title: 'الإشعارات',
-    notif_live: 'مباشر',
-    notif_updated: 'تم التحديث',
-    notif_unread_singular: 'إشعار غير مقروء',
-    notif_unread_plural: 'إشعارات غير مقروءة',
-    notif_mark_all_read: 'تحديد الكل كمقروء',
-    notif_tab_all: 'الكل',
-    notif_tab_unread: 'غير مقروء',
-    notif_tab_likes: 'إعجابات',
-    notif_tab_follows: 'متابعات',
-    notif_empty_title: 'لا توجد إشعارات',
-    notif_empty_unread: 'أنت على اطلاع بكل جديد!',
-    notif_empty_all: 'عندما تتلقى إشعارات، ستظهر هنا',
-
     // Profile
     profile_sign_in_msg: 'يرجى تسجيل الدخول لعرض ملفك الشخصي',
     profile_edit: 'تعديل الملف الشخصي',
@@ -903,7 +842,8 @@ export const translations = {
     post_report_btn: 'الإبلاغ عن المنشور',
     post_show_more: 'عرض المزيد',
     post_show_less: 'عرض أقل',
-    post_positive_vibes: 'طاقة إيجابية',
+    post_likes_count: 'إعجاب',
+    post_reacted_users_title: 'التفاعلات',
     post_view_all_expr: 'عرض جميع',
     post_expressions: 'التعابير',
     post_share_thoughts: 'شارك أفكارك...',

@@ -27,9 +27,9 @@ interface PostCardProps {
 export function PostCard({ post, onDelete }: PostCardProps) {
   const { currentUser } = useAuth()
   const { t } = useLanguage()
-  const [isLiked, setIsLiked] = useState(post.is_liked ?? false)
+  const [isLiked, setIsLiked] = useState<boolean>(post.is_liked ?? false)
   const [selectedReact, setSelectedReact] = useState<string | null>(post.reaction || null)
-  const [likesCount, setLikesCount] = useState(post.likes || 0)
+  const [likesCount, setLikesCount] = useState<number>(post.likes || 0)
   const [userRating, setUserRating] = useState(0)
   const [ratingData, setRatingData] = useState({
     rating: post.rating || 0,
@@ -37,6 +37,11 @@ export function PostCard({ post, onDelete }: PostCardProps) {
   })
   const [isSaved, setIsSaved] = useState(post.is_saved ?? false)
   const [showRating, setShowRating] = useState(false)
+
+  // Reactors Dialog State
+  const [showReactorsModal, setShowReactorsModal] = useState(false)
+  const [reactors, setReactors] = useState<any[]>([])
+  const [loadingReactors, setLoadingReactors] = useState(false)
 
   // Comments
   const [comments, setComments] = useState<any[]>(post.comments || [])
@@ -144,20 +149,17 @@ export function PostCard({ post, onDelete }: PostCardProps) {
     }
   }
 
-  const handleReactClick = async (reaction: string) => {
+  const handleLikeToggle = async () => {
     if (!currentUser) { toast.error('Please sign in to react'); return }
     
     const wasLiked = isLiked
-    const prevReact = selectedReact
+    const newLiked = !wasLiked
     
-    if (selectedReact === reaction) {
-      setSelectedReact(null)
-      setIsLiked(false)
-      setLikesCount(prev => prev - 1)
-    } else {
-      if (!isLiked) setLikesCount(prev => prev + 1)
-      setIsLiked(true)
-      setSelectedReact(reaction)
+    setIsLiked(newLiked)
+    setSelectedReact(newLiked ? '❤️' : null)
+    setLikesCount(prev => newLiked ? prev + 1 : prev - 1)
+    
+    if (newLiked) {
       setLikeAnim(true)
       setTimeout(() => setLikeAnim(false), 600)
     }
@@ -166,12 +168,12 @@ export function PostCard({ post, onDelete }: PostCardProps) {
       const res = await fetch(`/api/posts/${post.id}/like`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: currentUser.id, emoji: reaction })
+        body: JSON.stringify({ userId: currentUser.id, emoji: '❤️' })
       })
       if (!res.ok) throw new Error('API Error')
     } catch {
       setIsLiked(wasLiked)
-      setSelectedReact(prevReact)
+      setSelectedReact(wasLiked ? '❤️' : null)
       setLikesCount(prev => wasLiked ? prev : prev - 1)
       toast.error('Connection error')
     }
@@ -179,7 +181,22 @@ export function PostCard({ post, onDelete }: PostCardProps) {
 
   const handleDoubleTapLike = () => {
     if (!isLiked) {
-      handleReactClick('❤️')
+      handleLikeToggle()
+    }
+  }
+
+  const openReactorsModal = async () => {
+    setShowReactorsModal(true)
+    setLoadingReactors(true)
+    try {
+      const res = await fetch(`/api/posts/${post.id}/like`)
+      if (res.ok) {
+        setReactors(await res.json())
+      }
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setLoadingReactors(false)
     }
   }
 
@@ -337,8 +354,8 @@ export function PostCard({ post, onDelete }: PostCardProps) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           conversationId: conv.id,
-          senderId: currentUser.id,
-          content: `Check out this post: ${window.location.origin}/post/${post.id}`
+          userId: currentUser.id,
+          text: `Check out this post: ${window.location.origin}/post/${post.id}`
         })
       })
       if (res.ok) {
@@ -364,7 +381,7 @@ export function PostCard({ post, onDelete }: PostCardProps) {
       <CardHeader className="flex flex-row items-center gap-3 p-4">
         <Link href={`/profile/${user.id}`}>
           <Avatar className="h-10 w-10 border border-border">
-            <AvatarImage src={user.avatar || user.avatar_url || undefined} alt={user.username} />
+            <AvatarImage src={user.avatar || undefined} alt={user.username} />
             <AvatarFallback>{user.username?.[0] || 'U'}</AvatarFallback>
           </Avatar>
         </Link>
@@ -493,32 +510,19 @@ export function PostCard({ post, onDelete }: PostCardProps) {
       <CardFooter className="flex flex-col items-start gap-3 p-4">
         <div className="flex w-full items-center justify-between">
           <div className="flex items-center gap-1 group relative">
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-10 w-10 rounded-full hover:bg-secondary"
-                >
-                  {selectedReact ? (
-                    <span className="text-xl animate-in zoom-in spin-in-12 duration-300">{selectedReact}</span>
-                  ) : (
-                    <Heart className="h-6 w-6 text-muted-foreground transition-all duration-300 hover:text-red-500" />
-                  )}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent side="top" align="start" className="w-auto p-2 flex gap-2 rounded-full shadow-xl border-border/50 animate-in fade-in slide-in-from-bottom-2">
-                {['👏', '👍', '❤️', '🤗', '👎', '😂'].map(emoji => (
-                  <button 
-                    key={emoji}
-                    onClick={(e) => { e.stopPropagation(); handleReactClick(emoji) }}
-                    className="h-10 w-10 text-2xl hover:scale-125 hover:-translate-y-2 transition-transform duration-200 flex items-center justify-center rounded-full hover:bg-secondary cursor-pointer"
-                  >
-                    {emoji}
-                  </button>
-                ))}
-              </PopoverContent>
-            </Popover>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-10 w-10 rounded-full hover:bg-secondary"
+              onClick={handleLikeToggle}
+            >
+              <Heart
+                className={cn(
+                  "h-6 w-6 transition-all duration-300",
+                  isLiked ? "fill-red-500 text-red-500 scale-110" : "text-muted-foreground hover:text-red-500"
+                )}
+              />
+            </Button>
             <Button
               variant="ghost"
               size="icon"
@@ -618,7 +622,12 @@ export function PostCard({ post, onDelete }: PostCardProps) {
 
         {/* Info — likes count only; caption shown above for photo posts */}
         <div className="space-y-1 w-full px-1">
-          <p className="text-sm font-bold tracking-tight">{formatNumber(likesCount)} {t('post_positive_vibes')}</p>
+          <button
+            onClick={openReactorsModal}
+            className="text-sm font-bold tracking-tight hover:underline focus:outline-none text-left cursor-pointer"
+          >
+            {formatNumber(likesCount)} {t('post_likes_count')}
+          </button>
 
           {/* For photo-only posts (no caption shown above), show username inline */}
           {!hasContent && (
@@ -813,6 +822,54 @@ export function PostCard({ post, onDelete }: PostCardProps) {
                 {isReporting ? 'Submitting...' : 'Submit Report'}
               </Button>
             </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+      {/* Reactors Dialog */}
+      <Dialog open={showReactorsModal} onOpenChange={setShowReactorsModal}>
+        <DialogContent className="max-w-md w-[90vw] p-6 rounded-2xl max-h-[70vh] flex flex-col bg-background border border-border">
+          <DialogHeader className="border-b border-border pb-3 mb-2">
+            <DialogTitle className="text-lg font-bold flex items-center gap-2">
+              <Heart className="h-5 w-5 fill-red-500 text-red-500" />
+              <span>{t('post_reacted_users_title') || 'Reactions'}</span>
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto space-y-4 py-2 pr-1">
+            {loadingReactors ? (
+              <div className="flex flex-col items-center justify-center py-8 space-y-2 text-muted-foreground text-sm">
+                <div className="animate-spin rounded-full h-5 w-5 border-2 border-primary border-t-transparent" />
+                <span>Loading reactions...</span>
+              </div>
+            ) : reactors.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground text-sm">
+                No reactions yet.
+              </div>
+            ) : (
+              reactors.map((reactor: any) => (
+                <div key={reactor.id} className="flex items-center justify-between">
+                  <Link
+                    href={`/profile/${reactor.id}`}
+                    onClick={() => setShowReactorsModal(false)}
+                    className="flex items-center gap-3 hover:opacity-80 transition-opacity"
+                  >
+                    <Avatar className="h-10 w-10">
+                      <AvatarImage src={reactor.avatar || undefined} />
+                      <AvatarFallback>{reactor.name?.[0] || 'U'}</AvatarFallback>
+                    </Avatar>
+                    <div className="flex flex-col text-left">
+                      <span className="font-semibold text-sm flex items-center gap-1">
+                        {reactor.name}
+                        {reactor.is_verified && (
+                          <span className="inline-block bg-blue-500 text-white rounded-full p-0.5 text-[8px] leading-none">✓</span>
+                        )}
+                      </span>
+                      <span className="text-xs text-muted-foreground">@{reactor.username}</span>
+                    </div>
+                  </Link>
+                  <span className="text-xl">{reactor.emoji || '❤️'}</span>
+                </div>
+              ))
+            )}
           </div>
         </DialogContent>
       </Dialog>

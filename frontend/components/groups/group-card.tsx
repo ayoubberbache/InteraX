@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import Image from 'next/image'
 import Link from 'next/link'
@@ -11,7 +11,7 @@ interface GroupCardProps {
 }
 
 export function GroupCard({ group }: GroupCardProps) {
-  const memberCount = group.member_count || 0
+  const memberCount = group.members_count ?? group.member_count ?? 0
   const rating = group.rating || 0
   const ratingCount = group.rating_count || 0
   

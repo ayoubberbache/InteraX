@@ -1,5 +1,26 @@
 import { NextResponse, NextRequest } from 'next/server'
-import { queryOne, execute } from '@/backend/lib/db'
+import { query, queryOne, execute } from '@/backend/lib/db'
+
+export async function GET(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id: postId } = await params
+
+  try {
+    const list = await query(`
+      SELECT u.id, u.full_name as name, u.username, u.avatar_url as avatar, u.is_verified, pl.emoji
+      FROM post_likes pl
+      JOIN users u ON pl.user_id = u.id
+      WHERE pl.post_id = $1
+      ORDER BY pl.id DESC
+    `, [postId])
+
+    return NextResponse.json(list)
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+}
 
 export async function POST(
   req: NextRequest,

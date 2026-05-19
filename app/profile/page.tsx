@@ -52,10 +52,57 @@ export default function ProfilePage() {
     }
   }
 
+  const handleUnfollowPage = async (pageId: string) => {
+    if (!currentUser) return
+    try {
+      const res = await fetch(`/api/pages/${pageId}/follow`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: currentUser.id })
+      })
+      if (res.ok) {
+        toast.success('Unfollowed page successfully')
+        setPages(prev => prev.filter(p => p.id !== pageId))
+        refreshUser()
+      } else {
+        toast.error('Failed to unfollow page')
+      }
+    } catch {
+      toast.error('Failed to unfollow page')
+    }
+  }
+
+  const handleLeaveGroup = async (groupId: string) => {
+    if (!currentUser) return
+    try {
+      const res = await fetch(`/api/groups/${groupId}/join`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: currentUser.id })
+      })
+      if (res.ok) {
+        toast.success('Left group successfully')
+        setGroups(prev => prev.filter(g => g.id !== groupId))
+        refreshUser()
+      } else {
+        toast.error('Failed to leave group')
+      }
+    } catch {
+      toast.error('Failed to leave group')
+    }
+  }
+
   useEffect(() => {
     if (activeTab === 'saved' && currentUser) {
       fetch(`/api/posts?userId=${currentUser.id}&savedOnly=true`)
-        .then(res => res.json())
+        .then(res => {
+          if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`)
+          const contentType = res.headers.get('content-type')
+          if (!contentType || !contentType.includes('application/json')) {
+            throw new TypeError('Expected JSON response')
+          }
+          return res.json()
+        })
         .then(data => setSavedPosts(Array.isArray(data) ? data : []))
         .catch(() => {})
     }
@@ -67,8 +114,8 @@ export default function ProfilePage() {
     try {
       const [postsRes, pagesRes, allGroupsRes, savedRes] = await Promise.all([
         fetch(`/api/posts?userId=${currentUser.id}`),
-        fetch('/api/pages'),
-        fetch('/api/groups'),
+        fetch(`/api/pages?userId=${currentUser.id}&followedOnly=true`),
+        fetch(`/api/groups?userId=${currentUser.id}&memberOf=true`),
         fetch(`/api/posts?userId=${currentUser.id}&savedOnly=true`)
       ])
 
@@ -79,15 +126,11 @@ export default function ProfilePage() {
       }
       if (pagesRes.ok) {
         const data = await pagesRes.json()
-        setPages(Array.isArray(data) ? data.filter((p: any) => p.owner_id === currentUser.id) : [])
+        setPages(Array.isArray(data) ? data : [])
       }
       if (allGroupsRes.ok) {
         const data = await allGroupsRes.json()
-        // Show groups the user owns OR is a member of
-        const myGroups = Array.isArray(data) ? data.filter((g: any) =>
-          g.owner_id === currentUser.id
-        ) : []
-        setGroups(myGroups)
+        setGroups(Array.isArray(data) ? data : [])
       }
       if (savedRes.ok) {
         const data = await savedRes.json()
@@ -101,8 +144,9 @@ export default function ProfilePage() {
   }, [currentUser])
 
   useEffect(() => {
+    refreshUser()
     loadPosts()
-  }, [loadPosts])
+  }, [loadPosts, refreshUser])
 
   if (!isLoggedIn || !currentUser) {
     return (
@@ -237,16 +281,36 @@ export default function ProfilePage() {
             {pages.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-4xl mx-auto">
                 {pages.map(page => (
-                  <Link key={page.id} href={`/pages/${page.id}`} className="flex items-center gap-4 p-4 border border-border rounded-xl hover:bg-secondary/20 transition-colors">
-                    <Avatar className="h-12 w-12 rounded-lg">
-                      <AvatarImage src={page.avatar_url} />
-                      <AvatarFallback className="rounded-lg">{page.name[0]}</AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <h4 className="font-semibold">{page.name}</h4>
-                      <p className="text-sm text-muted-foreground">@{page.handle}</p>
-                    </div>
-                  </Link>
+                  <div key={page.id} className="flex items-center justify-between p-4 border border-border rounded-xl bg-background/50 hover:bg-secondary/20 transition-colors">
+                    <Link href={`/pages/${page.id}`} className="flex items-center gap-4 flex-1 min-w-0">
+                      <Avatar className="h-12 w-12 rounded-lg flex-shrink-0">
+                        <AvatarImage src={page.avatar_url} />
+                        <AvatarFallback className="rounded-lg">{page.name[0]}</AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-semibold text-sm truncate">{page.name}</h4>
+                        <p className="text-xs text-muted-foreground truncate">@{page.handle}</p>
+                        <p className="text-xs text-muted-foreground">{formatNumber(page.followers_count || 0)} followers</p>
+                      </div>
+                    </Link>
+                    {page.owner_id !== currentUser?.id ? (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          handleUnfollowPage(page.id);
+                        }}
+                        className="ml-2 flex-shrink-0 text-destructive border-destructive/20 hover:bg-destructive/10 hover:text-destructive"
+                      >
+                        Unfollow
+                      </Button>
+                    ) : (
+                      <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 flex-shrink-0 ml-2">
+                        Owner
+                      </span>
+                    )}
+                  </div>
                 ))}
               </div>
             ) : (
@@ -261,16 +325,35 @@ export default function ProfilePage() {
             {groups.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-4xl mx-auto">
                 {groups.map(group => (
-                  <Link key={group.id} href={`/groups/${group.id}`} className="flex items-center gap-4 p-4 border border-border rounded-xl hover:bg-secondary/20 transition-colors">
-                    <Avatar className="h-12 w-12 rounded-lg">
-                      <AvatarImage src={group.avatar_url} />
-                      <AvatarFallback className="rounded-lg">{group.name[0]}</AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <h4 className="font-semibold">{group.name}</h4>
-                      <p className="text-sm text-muted-foreground">{formatNumber(group.members_count)} members</p>
-                    </div>
-                  </Link>
+                  <div key={group.id} className="flex items-center justify-between p-4 border border-border rounded-xl bg-background/50 hover:bg-secondary/20 transition-colors">
+                    <Link href={`/groups/${group.id}`} className="flex items-center gap-4 flex-1 min-w-0">
+                      <Avatar className="h-12 w-12 rounded-lg flex-shrink-0">
+                        <AvatarImage src={group.avatar_url} />
+                        <AvatarFallback className="rounded-lg">{group.name[0]}</AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-semibold text-sm truncate">{group.name}</h4>
+                        <p className="text-xs text-muted-foreground">{formatNumber(group.members_count || 0)} members</p>
+                      </div>
+                    </Link>
+                    {group.owner_id !== currentUser?.id ? (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          handleLeaveGroup(group.id);
+                        }}
+                        className="ml-2 flex-shrink-0 text-destructive border-destructive/20 hover:bg-destructive/10 hover:text-destructive"
+                      >
+                        Leave
+                      </Button>
+                    ) : (
+                      <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 flex-shrink-0 ml-2">
+                        Owner
+                      </span>
+                    )}
+                  </div>
                 ))}
               </div>
             ) : (

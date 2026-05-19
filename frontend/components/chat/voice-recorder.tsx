@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import { useState, useRef, useEffect } from 'react'
 import { Mic, Square, X, Check, Play, Pause, Trash2 } from 'lucide-react'
@@ -86,10 +86,10 @@ export function VoiceRecorder({ onRecord, onCancel }: VoiceRecorderProps) {
       <Button
         variant="ghost"
         size="icon"
-        className="shrink-0 text-muted-foreground hover:text-red-500 hover:bg-red-50"
+        className="h-8 w-8 md:h-9 md:w-9 shrink-0 text-muted-foreground hover:text-red-500 hover:bg-red-50"
         onClick={startRecording}
       >
-        <Mic className="h-5 w-5" />
+        <Mic className="h-4 w-4 md:h-5 md:w-5" />
       </Button>
     )
   }

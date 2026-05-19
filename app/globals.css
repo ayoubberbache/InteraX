@@ -4,6 +4,20 @@
 
 @custom-variant dark (&:is(.dark *));
 
+html {
+  font-size: 15px;
+}
+@media (max-width: 768px) {
+  html {
+    font-size: 14.5px;
+  }
+}
+@media (max-width: 480px) {
+  html {
+    font-size: 14px;
+  }
+}
+
 :root {
   --background: #F8F5FF;
   --foreground: #1a0030;

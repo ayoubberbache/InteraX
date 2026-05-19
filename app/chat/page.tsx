@@ -138,6 +138,29 @@ export default function ChatPage() {
   const abortRef = useRef<AbortController | null>(null)
   const [editingMsg, setEditingMsg] = useState<string | null>(null)
   
+  const [recentEmojis, setRecentEmojis] = useState<string[]>(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('interax_recent_emojis')
+      if (stored) {
+        try {
+          return JSON.parse(stored)
+        } catch (e) {}
+      }
+    }
+    return ['👏', '👍', '❤️', '🤗', '👎', '😂']
+  })
+
+  const addRecentEmoji = (emoji: string) => {
+    setRecentEmojis(prev => {
+      const filtered = prev.filter(e => e !== emoji)
+      const updated = [emoji, ...filtered].slice(0, 6)
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('interax_recent_emojis', JSON.stringify(updated))
+      }
+      return updated
+    })
+  }
+  
   // Group Chat State
   const [selectedGroupUsers, setSelectedGroupUsers] = useState<any[]>([])
   const [groupName, setGroupName] = useState('')
@@ -147,6 +170,7 @@ export default function ChatPage() {
   const [replyingToMsg, setReplyingToMsg] = useState<DbMessage | null>(null)
   const [forwardingMsg, setForwardingMsg] = useState<DbMessage | null>(null)
   const [isForwardOpen, setIsForwardOpen] = useState(false)
+  const [activeReactionPickerId, setActiveReactionPickerId] = useState<string | null>(null)
 
   // Redirect if not logged in
   useEffect(() => {
@@ -452,6 +476,8 @@ export default function ChatPage() {
     const hasReacted = msg.message_reactions?.find(r => r.user_id === currentUser.id && r.emoji === reaction)
     if (hasReacted) return
 
+    addRecentEmoji(reaction)
+
     setMessages(prev => prev.map(m => {
       if (m.id !== msg.id) return m
       const filteredReactions = m.message_reactions?.filter(r => r.user_id !== currentUser.id) || []
@@ -699,7 +725,7 @@ Tell users you can help them navigate the platform.`
   const isAnyChatOpen = selectedConversation !== null || isBotSelected
 
   return (
-    <MainLayout hideRightPanel>
+    <MainLayout>
       <div className="w-full h-[calc(100vh-3.5rem)] flex flex-col">
         <div className="grid md:grid-cols-[320px_1fr] flex-1 min-h-0 border border-border rounded-none md:rounded-lg overflow-hidden bg-background">
           
@@ -864,34 +890,41 @@ Tell users you can help them navigate the platform.`
             {isAnyChatOpen ? (
               <>
                 {/* Header */}
-                <div className="h-14 border-b border-border flex items-center px-4 bg-background justify-between">
-                  <div className="flex items-center gap-3">
-                    <Button variant="ghost" size="icon" className="md:hidden" onClick={goBackToList}><ChevronLeft /></Button>
+                <div className="h-12 md:h-14 border-b border-border flex items-center px-3 md:px-4 bg-background justify-between">
+                  <div className="flex items-center gap-2 md:gap-3 min-w-0">
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="md:hidden h-8 w-8 -ml-1 rounded-full text-foreground/80 hover:bg-secondary/60 active:scale-95 shrink-0 flex items-center justify-center" 
+                      onClick={goBackToList}
+                    >
+                      <ArrowLeft className="h-4 w-4" />
+                    </Button>
                     {isBotSelected ? (
                       <>
-                        <div className="h-10 w-10 flex items-center justify-center">
+                        <div className="h-8 w-8 md:h-10 md:w-10 flex items-center justify-center shrink-0">
                           <InteraXLogo className="h-full w-full object-contain" color="#000000" />
                         </div>
-                        <div>
-                          <p className="font-semibold text-sm">{t('chat_bot_name')}</p>
-                          <p className="text-[10px] text-emerald-500 font-medium">{t('chat_online')}</p>
+                        <div className="min-w-0">
+                          <p className="font-semibold text-xs md:text-sm truncate leading-tight">{t('chat_bot_name')}</p>
+                          <p className="text-[9px] md:text-[10px] text-emerald-500 font-medium">{t('chat_online')}</p>
                         </div>
                       </>
                     ) : (
                       <>
-                        <Avatar className="h-9 w-9">
+                        <Avatar className="h-8 w-8 md:h-9 md:w-9 shrink-0">
                           <AvatarImage src={selectedConversation?.other_user?.avatar_url || undefined} />
                           <AvatarFallback>{selectedConversation?.other_user?.full_name?.[0]}</AvatarFallback>
                         </Avatar>
-                        <div>
-                          <p className="font-semibold text-sm">{selectedConversation?.other_user?.full_name}</p>
-                          <p className="text-[10px] text-muted-foreground">@{selectedConversation?.other_user?.username}</p>
+                        <div className="min-w-0">
+                          <p className="font-semibold text-xs md:text-sm truncate leading-tight">{selectedConversation?.other_user?.full_name}</p>
+                          <p className="text-[9px] md:text-[10px] text-muted-foreground truncate">@{selectedConversation?.other_user?.username}</p>
                         </div>
                       </>
                     )}
                   </div>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5 md:gap-2">
                     {isStreaming && (
                       <Button 
                         variant="outline" 
@@ -900,16 +933,16 @@ Tell users you can help them navigate the platform.`
                           abortRef.current?.abort()
                           setIsStreaming(false)
                         }}
-                        className="border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground hidden sm:flex"
+                        className="border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground hidden sm:flex text-xs h-8 px-3"
                       >
-                        <div className="h-3.5 w-3.5 rounded-sm bg-current mr-2" />
+                        <div className="h-2.5 w-2.5 rounded-sm bg-current mr-1.5" />
                         {t('chat_stop_bot')}
                       </Button>
                     )}
                     {!isBotSelected && selectedConversation && (
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon"><MoreVertical className="h-5 w-5" /></Button>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 md:h-9 md:w-9 rounded-full"><MoreVertical className="h-4.5 w-4.5 md:h-5 md:w-5" /></Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-48">
                           <DropdownMenuItem className="text-destructive font-medium cursor-pointer focus:bg-destructive/10 focus:text-destructive" onClick={handleDeleteChat}>
@@ -925,19 +958,19 @@ Tell users you can help them navigate the platform.`
                 </div>
 
                 {/* Messages Area — independently scrollable */}
-                <div className="flex-1 p-4 overflow-y-auto min-h-0 relative" style={{overscrollBehavior:'contain'}}>
-                  <div className="space-y-4 pb-4">
+                <div className="flex-1 p-3 md:p-4 overflow-y-auto min-h-0 relative" style={{overscrollBehavior:'contain'}}>
+                  <div className="space-y-3 md:space-y-4 pb-3 md:pb-4">
                     {isBotSelected ? (
                       botMessages.map((m) => (
                         <div key={m.id} className={cn('flex', m.role === 'user' ? 'justify-end' : 'justify-start')}>
                           <div className={cn(
-                            'max-w-[85%] rounded-2xl px-4 py-2 text-sm shadow-sm transition-all',
+                            'max-w-[80%] rounded-2xl px-3 py-1.5 md:px-4 md:py-2 text-xs md:text-sm shadow-sm transition-all',
                             m.role === 'user' 
                               ? 'bg-gradient-to-r from-[#4B0082] to-[#E6E6FA] text-white rounded-tr-none' 
                               : 'bg-background border border-border rounded-tl-none'
                           )}>
-                            <p className="whitespace-pre-wrap leading-relaxed">{m.content}</p>
-                            <p className={cn('text-[10px] mt-1 opacity-70', m.role === 'user' ? 'text-right' : 'text-left')}>
+                            <p className="whitespace-pre-wrap leading-relaxed text-xs md:text-sm">{m.content}</p>
+                            <p className={cn('text-[9px] md:text-[10px] mt-1 opacity-70', m.role === 'user' ? 'text-right' : 'text-left')}>
                               {formatTimeAgo(m.timestamp)}
                             </p>
                           </div>
@@ -950,13 +983,13 @@ Tell users you can help them navigate the platform.`
                         
                         return (
                           <div key={m.id} className={cn('flex message-bubble', isOwn ? 'justify-end' : 'justify-start')}>
-                            <DropdownMenu>
+                            <DropdownMenu onOpenChange={(open) => { if (!open) setActiveReactionPickerId(null); }}>
                               <DropdownMenuTrigger asChild>
                                 <div className={cn(
-                                  'group relative max-w-[75%] transition-all cursor-pointer select-none active:scale-[0.99] outline-none',
+                                  'group relative max-w-[80%] md:max-w-[75%] transition-all cursor-pointer select-none active:scale-[0.99] outline-none',
                                   isEmojiOnly 
-                                    ? 'text-[80px] leading-none drop-shadow-xl animate-in zoom-in spin-in-2' 
-                                    : cn('px-4 py-2 text-sm shadow-sm', isOwn 
+                                    ? 'text-[50px] md:text-[80px] leading-none drop-shadow-xl animate-in zoom-in spin-in-2' 
+                                    : cn('px-3 py-1.5 md:px-4 md:py-2 text-xs md:text-sm shadow-sm', isOwn 
                                       ? 'bg-gradient-to-r from-[#4B0082] to-[#6366f1] text-white rounded-2xl rounded-tr-none' 
                                       : 'bg-background border border-border rounded-2xl rounded-tl-none text-foreground'
                                     )
@@ -971,42 +1004,42 @@ Tell users you can help them navigate the platform.`
                                       }}
                                       onBlur={() => setEditingMsg(null)}
                                       autoFocus
-                                      className="w-full bg-transparent border-b border-white/50 outline-none text-foreground"
+                                      className="w-full bg-transparent border-b border-white/50 outline-none text-foreground text-xs md:text-sm"
                                       onClick={(e) => e.stopPropagation()}
                                     />
                                   ) : (
-                                    <div className="space-y-2">
+                                    <div className="space-y-1.5">
                                       {m.is_forwarded && (
-                                        <div className="flex items-center gap-1 text-[9px] opacity-75 font-semibold italic mb-1">
-                                          <Share2 className="h-2.5 w-2.5" />
+                                        <div className="flex items-center gap-1 text-[8px] md:text-[9px] opacity-75 font-semibold italic mb-0.5">
+                                          <Share2 className="h-2 w-2 md:h-2.5 md:w-2.5" />
                                           <span>Forwarded</span>
                                         </div>
                                       )}
                                       {m.replied_content && m.replied_sender_name && (
                                         <div className={cn(
-                                          "border-l-2 rounded-r px-2 py-1 text-[11px] mb-1 text-left",
+                                          "border-l-2 rounded-r px-2 py-0.5 md:py-1 text-[10px] md:text-[11px] mb-1 text-left",
                                           isOwn ? "bg-white/10 border-white/60 text-white/90" : "bg-secondary/60 border-primary/50 text-foreground/90"
                                         )}>
-                                          <p className="font-bold text-[9px] text-indigo-400">
+                                          <p className="font-bold text-[8px] md:text-[9px] text-indigo-400">
                                             {m.replied_sender_name}
                                           </p>
-                                          <p className="truncate text-[10px] opacity-80">
+                                          <p className="truncate text-[9px] md:text-[10px] opacity-80">
                                             {m.replied_content}
                                           </p>
                                         </div>
                                       )}
                                       {m.type === 'image' && m.media_url && (
-                                        <div className="relative aspect-auto max-w-sm overflow-hidden rounded-lg border border-border/50 shadow-inner bg-secondary/10">
-                                          <img src={m.media_url} alt="Shared photo" className="max-h-80 w-full object-contain" />
+                                        <div className="relative aspect-auto max-w-[240px] md:max-w-sm overflow-hidden rounded-lg border border-border/50 shadow-inner bg-secondary/10">
+                                          <img src={m.media_url} alt="Shared photo" className="max-h-60 md:max-h-80 w-full object-contain" />
                                         </div>
                                       )}
                                       {m.type === 'audio' && m.media_url && (
-                                        <div className="flex items-center gap-2 py-1" onClick={(e) => e.stopPropagation()}>
-                                          <audio src={m.media_url} controls controlsList="nodownload noplaybackrate" className="h-8 w-48 custom-audio" />
+                                        <div className="flex items-center gap-1.5 py-0.5" onClick={(e) => e.stopPropagation()}>
+                                          <audio src={m.media_url} controls controlsList="nodownload noplaybackrate" className="h-7 w-40 md:h-8 md:w-48 custom-audio" />
                                         </div>
                                       )}
                                       {m.content && (
-                                        <p className={cn("leading-relaxed whitespace-pre-wrap", isEmojiOnly && "text-center")}>
+                                        <p className={cn("leading-relaxed whitespace-pre-wrap text-xs md:text-sm", isEmojiOnly && "text-center")}>
                                           {m.content}
                                         </p>
                                       )}
@@ -1017,17 +1050,17 @@ Tell users you can help them navigate the platform.`
                                   {m.message_reactions && m.message_reactions.length > 0 && (
                                     <div className="flex flex-wrap gap-1 mt-1 -mb-1">
                                       {[...new Set(m.message_reactions.map(r => r.emoji))].map((emoji, idx) => (
-                                        <div key={idx} className="bg-background/85 backdrop-blur-sm border border-border rounded-full px-2 py-0.5 text-xs shadow-sm animate-in zoom-in-50 duration-200 text-foreground flex items-center gap-1 font-medium">
+                                        <div key={idx} className="bg-background/85 backdrop-blur-sm border border-border rounded-full px-1.5 py-0.5 text-[9px] md:text-xs shadow-sm animate-in zoom-in-50 duration-200 text-foreground flex items-center gap-1 font-medium">
                                           <span>{emoji}</span>
                                           {m.message_reactions!.filter(r => r.emoji === emoji).length > 1 && (
-                                            <span className="text-[10px] text-muted-foreground">{m.message_reactions!.filter(r => r.emoji === emoji).length}</span>
+                                            <span className="text-[8px] md:text-[10px] text-muted-foreground">{m.message_reactions!.filter(r => r.emoji === emoji).length}</span>
                                           )}
                                         </div>
                                       ))}
                                     </div>
                                   )}
 
-                                  <p className={cn("text-[10px] mt-1 flex items-center gap-1", isOwn ? "justify-end" : "justify-start", isEmojiOnly ? "text-muted-foreground opacity-100 font-medium drop-shadow-md bg-background/50 px-2 py-0.5 rounded-full inline-flex absolute -bottom-6 right-0" : (isOwn ? "text-white/80 opacity-60" : "text-muted-foreground opacity-60"))}>
+                                  <p className={cn("text-[9px] md:text-[10px] mt-1 flex items-center gap-1", isOwn ? "justify-end" : "justify-start", isEmojiOnly ? "text-muted-foreground opacity-100 font-medium drop-shadow-md bg-background/50 px-2 py-0.5 rounded-full inline-flex absolute -bottom-6 right-0" : (isOwn ? "text-white/80 opacity-60" : "text-muted-foreground opacity-60"))}>
                                     <span>{formatTimeAgo(m.created_at)}</span>
                                     {m.updated_at && new Date(m.updated_at).getTime() - new Date(m.created_at).getTime() > 1000 && (
                                       <span>{t('chat_edited')}</span>
@@ -1036,23 +1069,68 @@ Tell users you can help them navigate the platform.`
                                 </div>
                               </DropdownMenuTrigger>
                               
-                              <DropdownMenuContent align={isOwn ? "end" : "start"} className="w-64 p-2 bg-popover/95 backdrop-blur-md border border-border rounded-2xl shadow-xl z-50">
+                              <DropdownMenuContent 
+                                align={isOwn ? "end" : "start"} 
+                                className={cn(
+                                  "p-2 bg-popover/95 backdrop-blur-md border border-border rounded-2xl shadow-xl z-50 overflow-visible transition-all duration-200",
+                                  activeReactionPickerId === m.id ? "w-80" : "w-64"
+                                )}
+                              >
                                 {/* Emoji Quick Reactions row */}
-                                <div className="flex justify-around items-center gap-1 pb-2 mb-2 border-b border-border/50">
-                                  {['👏', '👍', '❤️', '🤗', '👎', '😂'].map(emoji => (
-                                    <button 
-                                      key={emoji} 
-                                      onClick={(e) => {
-                                        e.preventDefault()
-                                        e.stopPropagation()
-                                        handleReact(m, emoji)
-                                      }} 
-                                      className="h-8 w-8 hover:bg-secondary rounded-full flex items-center justify-center text-lg hover:scale-125 transition-transform"
-                                    >
-                                      {emoji}
-                                    </button>
-                                  ))}
+                                <div className="flex items-center justify-between gap-1 pb-2 mb-2 border-b border-border/50">
+                                  <div className="flex gap-1">
+                                    {recentEmojis.map(emoji => (
+                                      <button 
+                                        key={emoji} 
+                                        onClick={(e) => {
+                                          e.preventDefault()
+                                          e.stopPropagation()
+                                          handleReact(m, emoji)
+                                        }} 
+                                        className="h-8 w-8 hover:bg-secondary rounded-full flex items-center justify-center text-lg hover:scale-125 transition-transform"
+                                      >
+                                        {emoji}
+                                      </button>
+                                    ))}
+                                  </div>
+                                  <button
+                                    onClick={(e) => {
+                                      e.preventDefault()
+                                      e.stopPropagation()
+                                      setActiveReactionPickerId(activeReactionPickerId === m.id ? null : m.id)
+                                    }}
+                                    className={cn(
+                                      "h-8 w-8 hover:bg-secondary rounded-full flex items-center justify-center text-lg hover:scale-125 transition-transform",
+                                      activeReactionPickerId === m.id && "bg-secondary text-primary"
+                                    )}
+                                  >
+                                    😊
+                                  </button>
                                 </div>
+
+                                {activeReactionPickerId === m.id && (
+                                  <div 
+                                    className="p-1 mb-2 border-b border-border/50 max-h-[300px] overflow-hidden rounded-xl bg-background/50"
+                                    onPointerDown={(e) => e.stopPropagation()}
+                                    onMouseDown={(e) => e.stopPropagation()}
+                                    onClick={(e) => {
+                                      e.preventDefault()
+                                      e.stopPropagation()
+                                    }}
+                                  >
+                                    <EmojiPicker
+                                      width="100%"
+                                      height={280}
+                                      skinTonesDisabled
+                                      searchDisabled
+                                      previewConfig={{ showPreview: false }}
+                                      onEmojiClick={(emojiData: any) => {
+                                        handleReact(m, emojiData.emoji)
+                                        setActiveReactionPickerId(null)
+                                      }}
+                                    />
+                                  </div>
+                                )}
                                 {isOwn ? (
                                   <>
                                     <DropdownMenuItem 
@@ -1099,12 +1177,6 @@ Tell users you can help them navigate the platform.`
                                       className="flex items-center gap-2 p-2 hover:bg-secondary rounded-lg cursor-pointer text-sm font-semibold text-foreground"
                                     >
                                       Forward
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem 
-                                      onClick={() => handleReact(m, '❤️')}
-                                      className="flex items-center gap-2 p-2 hover:bg-secondary rounded-lg cursor-pointer text-sm font-semibold text-foreground"
-                                    >
-                                      Like Message
                                     </DropdownMenuItem>
                                   </>
                                 )}

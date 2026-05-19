@@ -31,6 +31,10 @@ export async function POST(req: NextRequest) {
       [full_name, username, email, hash]
     )
 
+    user.followers_count = 0
+    user.following_count = 0
+    user.posts_count = 0
+
     const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '7d' })
 
     const { password_hash, ...safeUser } = user

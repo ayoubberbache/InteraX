@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { query } from '@/backend/lib/db'
 
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const { id } = params
+    const { id } = await params
     if (!id) return new NextResponse('Not found', { status: 404 })
 
     const rows = await query('SELECT url, mime_type FROM uploads WHERE id = $1', [id])

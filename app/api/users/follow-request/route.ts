@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
       )
       
       // If no row was updated, the follow request didn't exist or was already accepted
-      if (res.rowCount === 0) {
+      if (res === 0) {
         return NextResponse.json({ error: 'Follow request not found or already accepted' }, { status: 404 })
       }
 

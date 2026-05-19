@@ -20,7 +20,7 @@ import { cn } from '@/backend/lib/utils'
 export default function UserProfilePage(props: { params: Promise<{ id: string }> }) {
   const params = use(props.params)
   const router = useRouter()
-  const { currentUser } = useAuth()
+  const { currentUser, refreshUser } = useAuth()
 
   const [user, setUser] = useState<any>(null)
   const [userPosts, setUserPosts] = useState<any[]>([])
@@ -171,6 +171,7 @@ export default function UserProfilePage(props: { params: Promise<{ id: string }>
         }
         
         fetchUser()
+        refreshUser()
       }
     } catch {
       setFollowStatus(prevStatus)

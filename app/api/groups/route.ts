@@ -1,16 +1,35 @@
 import { NextResponse, NextRequest } from 'next/server'
 import { query, queryOne } from '@/backend/lib/db'
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
-    const groups = await query(`
-      SELECT g.*, 
-             (SELECT COUNT(*) FROM group_members gm WHERE gm.group_id = g.id) as real_members_count,
-             u.full_name as user_name, u.username as user_username, u.avatar_url as user_avatar, u.is_verified as user_verified
-      FROM groups g
-      LEFT JOIN users u ON g.owner_id = u.id
-      ORDER BY g.created_at DESC
-    `)
+    const { searchParams } = new URL(req.url)
+    const userId = searchParams.get('userId')
+    const memberOf = searchParams.get('memberOf') === 'true'
+
+    let groups;
+    if (memberOf && userId) {
+      groups = await query(`
+        SELECT g.*, 
+               (SELECT COUNT(*) FROM group_members gm WHERE gm.group_id = g.id) as real_members_count,
+               u.full_name as user_name, u.username as user_username, u.avatar_url as user_avatar, u.is_verified as user_verified
+        FROM groups g
+        LEFT JOIN users u ON g.owner_id = u.id
+        WHERE g.owner_id = $1 OR EXISTS (
+          SELECT 1 FROM group_members gm WHERE gm.group_id = g.id AND gm.user_id = $1
+        )
+        ORDER BY g.created_at DESC
+      `, [userId])
+    } else {
+      groups = await query(`
+        SELECT g.*, 
+               (SELECT COUNT(*) FROM group_members gm WHERE gm.group_id = g.id) as real_members_count,
+               u.full_name as user_name, u.username as user_username, u.avatar_url as user_avatar, u.is_verified as user_verified
+        FROM groups g
+        LEFT JOIN users u ON g.owner_id = u.id
+        ORDER BY g.created_at DESC
+      `)
+    }
 
     const formattedGroups = groups.map((g: any) => ({
       ...g,
@@ -40,14 +59,14 @@ export async function POST(req: NextRequest) {
     const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') + '-' + Date.now()
 
     const group = await queryOne(
-      `INSERT INTO groups (name, slug, description, avatar_url, cover_url, owner_id) 
-       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+      `INSERT INTO groups (name, slug, description, avatar_url, cover_url, owner_id, members_count) 
+       VALUES ($1, $2, $3, $4, $5, $6, 1) RETURNING *`,
       [name, slug, description, avatar_url, cover_url, userId]
     )
 
     await query(`INSERT INTO group_members (group_id, user_id) VALUES ($1, $2)`, [group.id, userId])
 
-    return NextResponse.json({ id: group.id, ...group })
+    return NextResponse.json({ id: group.id, members_count: 1, ...group })
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }

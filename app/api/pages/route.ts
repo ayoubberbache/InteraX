@@ -1,16 +1,35 @@
 import { NextResponse, NextRequest } from 'next/server'
 import { query, queryOne } from '@/backend/lib/db'
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
-    const pages = await query(`
-      SELECT p.*, 
-             (SELECT COUNT(*) FROM page_followers pf WHERE pf.page_id = p.id) as real_followers_count,
-             u.full_name as user_name, u.username as user_username, u.avatar_url as user_avatar, u.is_verified as user_verified
-      FROM pages p
-      LEFT JOIN users u ON p.owner_id = u.id
-      ORDER BY p.created_at DESC
-    `)
+    const { searchParams } = new URL(req.url)
+    const userId = searchParams.get('userId')
+    const followedOnly = searchParams.get('followedOnly') === 'true'
+
+    let pages;
+    if (followedOnly && userId) {
+      pages = await query(`
+        SELECT p.*, 
+               (SELECT COUNT(*) FROM page_followers pf WHERE pf.page_id = p.id) as real_followers_count,
+               u.full_name as user_name, u.username as user_username, u.avatar_url as user_avatar, u.is_verified as user_verified
+        FROM pages p
+        LEFT JOIN users u ON p.owner_id = u.id
+        WHERE p.owner_id = $1 OR EXISTS (
+          SELECT 1 FROM page_followers pf WHERE pf.page_id = p.id AND pf.user_id = $1
+        )
+        ORDER BY p.created_at DESC
+      `, [userId])
+    } else {
+      pages = await query(`
+        SELECT p.*, 
+               (SELECT COUNT(*) FROM page_followers pf WHERE pf.page_id = p.id) as real_followers_count,
+               u.full_name as user_name, u.username as user_username, u.avatar_url as user_avatar, u.is_verified as user_verified
+        FROM pages p
+        LEFT JOIN users u ON p.owner_id = u.id
+        ORDER BY p.created_at DESC
+      `)
+    }
 
     const formattedPages = pages.map((p: any) => ({
       ...p,
@@ -38,12 +57,14 @@ export async function POST(req: NextRequest) {
     if (!name || !handle) return NextResponse.json({ error: 'Name and handle are required' }, { status: 400 })
 
     const page = await queryOne(
-      `INSERT INTO pages (name, handle, description, category, avatar_url, cover_url, owner_id) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+      `INSERT INTO pages (name, handle, description, category, avatar_url, cover_url, owner_id, followers_count) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, 1) RETURNING *`,
       [name, handle.toLowerCase(), description, category || null, avatar_url, cover_url, userId]
     )
 
-    return NextResponse.json({ id: page.id, followers_count: 0, ...page })
+    await query(`INSERT INTO page_followers (page_id, user_id) VALUES ($1, $2)`, [page.id, userId])
+
+    return NextResponse.json({ id: page.id, followers_count: 1, ...page })
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }

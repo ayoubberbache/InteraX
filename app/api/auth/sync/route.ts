@@ -53,6 +53,13 @@ export async function POST(req: NextRequest) {
       )
     }
 
+    const followersCountRes = await queryOne(`SELECT COUNT(*)::int as count FROM follows WHERE following_id = $1 AND status = 'accepted'`, [existing.id])
+    const followingCountRes = await queryOne(`SELECT COUNT(*)::int as count FROM follows WHERE follower_id = $1 AND status = 'accepted'`, [existing.id])
+    const postsCountRes = await queryOne(`SELECT COUNT(*)::int as count FROM posts WHERE user_id = $1`, [existing.id])
+    existing.followers_count = followersCountRes?.count || 0
+    existing.following_count = followingCountRes?.count || 0
+    existing.posts_count = postsCountRes?.count || 0
+
     const token = jwt.sign({ userId: existing.id }, JWT_SECRET, { expiresIn: '7d' })
 
     const { password_hash, ...safeUser } = existing

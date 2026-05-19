@@ -15,6 +15,7 @@ import {
   DropdownMenuTrigger,
 } from '@/frontend/components/ui/dropdown-menu'
 import { useLanguage } from '@/backend/lib/i18n/context'
+import { toast } from 'sonner'
 
 interface ApiStory {
   id: string
@@ -56,6 +57,7 @@ export function StoryViewer({
   const [isDeleting, setIsDeleting] = useState(false)
   const [mounted, setMounted] = useState(false)
   const [hasLiked, setHasLiked] = useState(false)
+  const [replyText, setReplyText] = useState('')
   const mediaRef = useRef<HTMLVideoElement | HTMLAudioElement>(null)
   const { currentUser } = useAuth()
   const { t } = useLanguage()
@@ -118,7 +120,14 @@ export function StoryViewer({
 
     // Load existing reactions
     fetch(`/api/stories/reactions?storyId=${story.id}`)
-      .then(res => res.json())
+      .then(res => {
+        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`)
+        const contentType = res.headers.get('content-type')
+        if (!contentType || !contentType.includes('application/json')) {
+          throw new TypeError('Expected JSON response')
+        }
+        return res.json()
+      })
       .then(data => {
         if (Array.isArray(data)) {
           if (currentUser && data.some((d: any) => d.userId === currentUser.id && d.emoji === '❤️')) {
@@ -215,9 +224,10 @@ export function StoryViewer({
         })
       })
       
-      // Flash a little feedback or just let it succeed silently
+      toast.success('Reply sent successfully!')
     } catch (err) {
       console.error(err)
+      toast.error('Failed to send reply')
     }
   }
 
@@ -358,21 +368,38 @@ export function StoryViewer({
         </button>
       </div>
 
-      {/* Only Like Button for other users */}
+      {/* Reply input and Like Button for other users */}
       {currentUser && currentUser.id !== story.userId && (
-        <div className="absolute bottom-0 left-0 right-0 z-30 p-6 pt-safe flex items-center justify-end bg-gradient-to-t from-black/80 to-transparent pointer-events-none">
-          <div className="pointer-events-auto">
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className={cn("rounded-full h-14 w-14 hover:bg-white/20 transition-transform hover:scale-110", hasLiked ? "text-red-500" : "text-white")}
-              onClick={() => {
-                if (!hasLiked) addReaction('❤️')
-              }}
-            >
-              <Heart className={cn("h-8 w-8", hasLiked && "fill-current")} />
-            </Button>
-          </div>
+        <div className="absolute bottom-0 left-0 right-0 z-30 p-4 pb-6 flex items-center gap-3 bg-gradient-to-t from-black/90 via-black/50 to-transparent">
+          <form onSubmit={handleReply} className="flex-1 flex items-center gap-2 bg-white/10 hover:bg-white/20 focus-within:bg-white/20 backdrop-blur-md rounded-full px-4 py-1.5 border border-white/10 transition-all">
+            <input
+              type="text"
+              placeholder="Reply to story..."
+              value={replyText}
+              onChange={(e) => setReplyText(e.target.value)}
+              onFocus={() => setIsPaused(true)}
+              onBlur={() => setIsPaused(false)}
+              className="flex-1 bg-transparent text-white placeholder-white/60 text-sm focus:outline-none py-1"
+            />
+            {replyText.trim() && (
+              <Button type="submit" variant="ghost" size="sm" className="text-white hover:bg-white/20 text-xs font-semibold px-3 py-1 h-auto rounded-full">
+                Send
+              </Button>
+            )}
+          </form>
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className={cn("rounded-full h-10 w-10 hover:bg-white/20 transition-transform hover:scale-110 shrink-0", hasLiked ? "text-red-500" : "text-white")}
+            onClick={() => {
+              if (!hasLiked) {
+                addReaction('❤️')
+                handleReply(undefined, true)
+              }
+            }}
+          >
+            <Heart className={cn("h-5 w-5", hasLiked && "fill-current")} />
+          </Button>
         </div>
       )}
 

@@ -21,6 +21,7 @@ export default function PageDetails(props: { params: Promise<{ id: string }> }) 
   
   const [page, setPage] = useState<any>(null)
   const [pagePosts, setPagePosts] = useState<any[]>([])
+  const [pageFollowers, setPageFollowers] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
   const [isJoined, setIsJoined] = useState(false)
@@ -56,6 +57,13 @@ export default function PageDetails(props: { params: Promise<{ id: string }> }) 
             const fData = await fRes.json()
             setIsJoined(fData.isFollowed)
           }
+        }
+
+        // Fetch followers list
+        const followersRes = await fetch(`/api/pages/${params.id}/followers`)
+        if (followersRes.ok) {
+          const fList = await followersRes.json()
+          setPageFollowers(fList)
         }
       } catch (err) {
         console.error(err)
@@ -197,6 +205,7 @@ export default function PageDetails(props: { params: Promise<{ id: string }> }) 
         <Tabs defaultValue="posts" className="p-4 md:p-6">
           <TabsList className="w-full justify-start">
             <TabsTrigger value="posts">Posts</TabsTrigger>
+            <TabsTrigger value="followers">Followers</TabsTrigger>
             <TabsTrigger value="about">About</TabsTrigger>
           </TabsList>
 
@@ -250,6 +259,31 @@ export default function PageDetails(props: { params: Promise<{ id: string }> }) 
                 pagePosts.map(post => <PostCard key={post.id} post={post} />)
               ) : (
                 <div className="text-center py-12 text-muted-foreground">No posts yet on this page</div>
+              )}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="followers" className="mt-6">
+            <div className="max-w-xl mx-auto space-y-4">
+              {pageFollowers.length > 0 ? (
+                pageFollowers.map((follower: any) => (
+                  <div key={follower.id} className="flex items-center justify-between p-4 bg-card border border-border rounded-xl">
+                    <div className="flex items-center gap-3">
+                      <Avatar>
+                        <AvatarImage src={follower.avatar || undefined} />
+                        <AvatarFallback>{follower.name?.[0]}</AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <Link href={`/profile/${follower.id}`} className="font-semibold hover:underline">
+                          {follower.name}
+                        </Link>
+                        <p className="text-xs text-muted-foreground">@{follower.username}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-12 text-muted-foreground">No followers found</div>
               )}
             </div>
           </TabsContent>

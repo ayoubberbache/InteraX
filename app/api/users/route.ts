@@ -2,6 +2,17 @@ import { NextRequest } from 'next/server'
 import { query, queryOne, execute } from '@/backend/lib/db'
 import { isValidUuid } from '@/backend/lib/utils'
 
+async function populateCounts(user: any) {
+  if (!user) return user
+  const followersCountRes = await queryOne(`SELECT COUNT(*)::int as count FROM follows WHERE following_id = $1 AND status = 'accepted'`, [user.id])
+  const followingCountRes = await queryOne(`SELECT COUNT(*)::int as count FROM follows WHERE follower_id = $1 AND status = 'accepted'`, [user.id])
+  const postsCountRes = await queryOne(`SELECT COUNT(*)::int as count FROM posts WHERE user_id = $1`, [user.id])
+  user.followers_count = followersCountRes?.count || 0
+  user.following_count = followingCountRes?.count || 0
+  user.posts_count = postsCountRes?.count || 0
+  return user
+}
+
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const rawUserId = searchParams.get('id')
@@ -25,6 +36,7 @@ export async function GET(req: NextRequest) {
 
       const user = await queryOne('SELECT * FROM users WHERE id = $1', [userId])
       if (!user) return Response.json({ error: 'User not found' }, { status: 404 })
+      await populateCounts(user)
       const { password_hash, ...safe } = user
       return Response.json({ data: safe })
     }
@@ -42,6 +54,7 @@ export async function GET(req: NextRequest) {
         if (blocked) return Response.json({ error: 'User not found' }, { status: 404 })
       }
 
+      await populateCounts(user)
       const { password_hash, ...safe } = user
       return Response.json({ data: safe })
     }
@@ -70,10 +83,11 @@ export async function GET(req: NextRequest) {
           [`%${queryStr}%`]
         )
       }
-      const safeUsers = users.map(u => {
+      const safeUsers = await Promise.all(users.map(async u => {
+        await populateCounts(u)
         const { password_hash, ...safe } = u
         return safe
-      })
+      }))
       return Response.json({ data: safeUsers })
     }
 
@@ -115,6 +129,7 @@ export async function PATCH(req: NextRequest) {
 
     const setClause = updates.join(', ')
     const updated = await queryOne(`UPDATE users SET ${setClause} WHERE id = $${paramIndex} RETURNING *`, values)
+    await populateCounts(updated)
 
     const { password_hash, ...safe } = updated
     return Response.json({ data: safe })

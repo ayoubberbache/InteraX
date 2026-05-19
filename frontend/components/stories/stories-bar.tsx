@@ -153,11 +153,11 @@ export function StoriesBar() {
           )}
 
           {/* Grouped stories */}
-          {Array.from(stories.reduce((acc, story) => {
+          {(Array.from(stories.reduce((acc, story) => {
             if (!acc.has(story.userId)) acc.set(story.userId, { user: story.author, stories: [] })
             acc.get(story.userId)!.stories.push(story)
             return acc
-          }, new Map<string, { user: any, stories: any[] }>()).values()).map(({ user, stories: userStories }) => {
+          }, new Map<string, { user: any, stories: any[] }>()).values()) as Array<{ user: any; stories: any[] }>).map(({ user, stories: userStories }) => {
             if (!user) return null
 
             // A group has unviewed if any story in the group is unviewed

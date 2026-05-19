@@ -24,6 +24,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 })
     }
 
+    const followersCountRes = await queryOne(`SELECT COUNT(*)::int as count FROM follows WHERE following_id = $1 AND status = 'accepted'`, [user.id])
+    const followingCountRes = await queryOne(`SELECT COUNT(*)::int as count FROM follows WHERE follower_id = $1 AND status = 'accepted'`, [user.id])
+    const postsCountRes = await queryOne(`SELECT COUNT(*)::int as count FROM posts WHERE user_id = $1`, [user.id])
+    user.followers_count = followersCountRes?.count || 0
+    user.following_count = followingCountRes?.count || 0
+    user.posts_count = postsCountRes?.count || 0
+
     const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '7d' })
 
     const { password_hash, ...safeUser } = user

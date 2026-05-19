@@ -9,8 +9,11 @@ import {
   Lock, 
   Palette, 
   Globe, 
-  HelpCircle, LogOut, ChevronRight, Moon, Sun, Monitor, Shield, Eye, Volume2, Mail, Smartphone, UserX
+  HelpCircle, LogOut, ChevronRight, Moon, Sun, Monitor, Shield, Eye, Volume2, Mail, Smartphone, UserX,
+  Users, FileText, ArrowLeft
 } from 'lucide-react'
+import Link from 'next/link'
+import { supabase } from '@/backend/lib/supabase'
 import { MainLayout } from '@/frontend/components/layout/main-layout'
 import { useAuth } from '@/backend/lib/auth-context'
 import { useLanguage } from '@/backend/lib/i18n/context'
@@ -27,8 +30,10 @@ import { toast } from 'sonner'
 import Cropper from 'react-easy-crop'
 import getCroppedImg from '@/frontend/lib/cropImage'
 import { uploadMedia } from '@/backend/lib/upload'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/frontend/components/ui/dialog'
+import { cn } from '@/backend/lib/utils'
 
-type SettingsSection = 'profile' | 'notifications' | 'privacy' | 'appearance' | 'language' | 'blocks'
+type SettingsSection = 'profile' | 'notifications' | 'privacy' | 'appearance' | 'language' | 'blocks' | 'groups' | 'pages' | 'help'
 
 export default function SettingsPage() {
   const router = useRouter()
@@ -39,6 +44,124 @@ export default function SettingsPage() {
   const [mounted, setMounted] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
+
+  // Password change states
+  const [showPasswordDialog, setShowPasswordDialog] = useState(false)
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [passwordLoading, setPasswordLoading] = useState(false)
+
+  // Mobile layout state
+  const [showSidebar, setShowSidebar] = useState(true)
+
+  // Groups and Pages settings states
+  const [myGroups, setMyGroups] = useState<any[]>([])
+  const [loadingMyGroups, setLoadingMyGroups] = useState(false)
+  const [myPages, setMyPages] = useState<any[]>([])
+  const [loadingMyPages, setLoadingMyPages] = useState(false)
+
+  const fetchMyGroups = async () => {
+    if (!currentUser) return
+    setLoadingMyGroups(true)
+    try {
+      const res = await fetch(`/api/groups?userId=${currentUser.id}&memberOf=true`)
+      if (res.ok) {
+        const data = await res.json()
+        setMyGroups(data || [])
+      }
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setLoadingMyGroups(false)
+    }
+  }
+
+  const fetchMyPages = async () => {
+    if (!currentUser) return
+    setLoadingMyPages(true)
+    try {
+      const res = await fetch(`/api/pages?userId=${currentUser.id}&followedOnly=true`)
+      if (res.ok) {
+        const data = await res.json()
+        setMyPages(data || [])
+      }
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setLoadingMyPages(false)
+    }
+  }
+
+  const handleLeaveGroup = async (groupId: string) => {
+    if (!currentUser) return
+    try {
+      const res = await fetch(`/api/groups/${groupId}/join`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: currentUser.id })
+      })
+      if (res.ok) {
+        toast.success('Left group successfully')
+        setMyGroups(prev => prev.filter(g => g.id !== groupId))
+      } else {
+        toast.error('Failed to leave group')
+      }
+    } catch {
+      toast.error('Error leaving group')
+    }
+  }
+
+  const handleUnfollowPage = async (pageId: string) => {
+    if (!currentUser) return
+    try {
+      const res = await fetch(`/api/pages/${pageId}/follow`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: currentUser.id })
+      })
+      if (res.ok) {
+        toast.success('Unfollowed page successfully')
+        setMyPages(prev => prev.filter(p => p.id !== pageId))
+      } else {
+        toast.error('Failed to unfollow page')
+      }
+    } catch {
+      toast.error('Error unfollowing page')
+    }
+  }
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newPassword) {
+      toast.error('Password cannot be empty')
+      return
+    }
+    if (newPassword.length < 6) {
+      toast.error('Password must be at least 6 characters')
+      return
+    }
+    if (newPassword !== confirmPassword) {
+      toast.error('Passwords do not match')
+      return
+    }
+
+    setPasswordLoading(true)
+    try {
+      const { error } = await supabase.auth.updateUser({ password: newPassword })
+      if (error) {
+        toast.error(error.message)
+      } else {
+        toast.success('Password updated successfully')
+        setNewPassword('')
+        setConfirmPassword('')
+        setShowPasswordDialog(false)
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Error updating password')
+    } finally {
+      setPasswordLoading(false)
+    }
+  }
 
   // Block List states
   const [blockedUsers, setBlockedUsers] = useState<any[]>([])
@@ -65,6 +188,10 @@ export default function SettingsPage() {
   useEffect(() => {
     if (activeSection === 'blocks') {
       fetchBlockedUsers()
+    } else if (activeSection === 'groups') {
+      fetchMyGroups()
+    } else if (activeSection === 'pages') {
+      fetchMyPages()
     }
   }, [activeSection])
 
@@ -79,7 +206,7 @@ export default function SettingsPage() {
       if (res.ok) {
         const { data } = await res.json()
         setBlockSearchResults(
-          data.filter((u: any) => u.id !== currentUser.id && !blockedUsers.find(b => b.id === u.id))
+          data.filter((u: any) => currentUser && u.id !== currentUser.id && !blockedUsers.find(b => b.id === u.id))
         )
       }
     } catch {}
@@ -182,6 +309,8 @@ export default function SettingsPage() {
     { id: 'appearance' as const, icon: Palette, label: t('set_appearance') },
     { id: 'language' as const, icon: Globe, label: t('set_language') },
     { id: 'blocks' as const, icon: UserX, label: 'Blocked Users' },
+    { id: 'groups' as const, icon: Users, label: 'Groups' },
+    { id: 'pages' as const, icon: FileText, label: 'Pages' },
   ]
 
   const handleLogout = () => {
@@ -463,28 +592,6 @@ export default function SettingsPage() {
                 </div>
                 <Switch checked={privateAccount} onCheckedChange={handlePrivacyToggle} />
               </div>
-              
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <Eye className="h-5 w-5 text-muted-foreground" />
-                  <div>
-                    <Label>{t('set_activity_status')}</Label>
-                    <p className="text-sm text-muted-foreground">{t('set_activity_status_desc')}</p>
-                  </div>
-                </div>
-                <Switch checked={showActivity} onCheckedChange={setShowActivity} />
-              </div>
-              
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <Shield className="h-5 w-5 text-muted-foreground" />
-                  <div>
-                    <Label>{t('set_allow_tags')}</Label>
-                    <p className="text-sm text-muted-foreground">{t('set_allow_tags_desc')}</p>
-                  </div>
-                </div>
-                <Switch checked={allowTags} onCheckedChange={setAllowTags} />
-              </div>
             </div>
             
             <Separator />
@@ -492,18 +599,8 @@ export default function SettingsPage() {
             <div className="space-y-4">
               <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">{t('set_security')}</h3>
               
-              <Button variant="outline" className="w-full justify-between">
+              <Button variant="outline" className="w-full justify-between" onClick={() => setShowPasswordDialog(true)}>
                 {t('set_change_password')}
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-              
-              <Button variant="outline" className="w-full justify-between">
-                {t('set_2fa')}
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-              
-              <Button variant="outline" className="w-full justify-between">
-                {t('set_login_activity')}
                 <ChevronRight className="h-4 w-4" />
               </Button>
             </div>
@@ -680,6 +777,88 @@ export default function SettingsPage() {
             </div>
           </div>
         )
+
+      case 'groups':
+        return (
+          <div className="space-y-6">
+            <div>
+              <h3 className="text-sm font-semibold mb-3">Your Groups</h3>
+              {loadingMyGroups ? (
+                <div className="flex justify-center p-4">
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary" />
+                </div>
+              ) : myGroups.length > 0 ? (
+                <div className="space-y-3">
+                  {myGroups.map((group) => (
+                    <div key={group.id} className="flex items-center justify-between p-3 bg-secondary/10 border border-border/50 rounded-xl">
+                      <Link href={`/groups/${group.id}`} className="flex items-center gap-3 hover:opacity-80">
+                        <Avatar className="h-10 w-10">
+                          <AvatarImage src={group.avatar_url || undefined} alt={group.name} />
+                          <AvatarFallback>{group.name?.[0]}</AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <p className="text-sm font-semibold">{group.name}</p>
+                          <p className="text-xs text-muted-foreground">{(group.members_count || 1)} members</p>
+                        </div>
+                      </Link>
+                      <Button variant="outline" size="sm" className="text-destructive hover:bg-destructive/10 border-destructive/20" onClick={() => handleLeaveGroup(group.id)}>
+                        Leave Group
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-6 text-muted-foreground">
+                  <p className="text-sm">You haven't joined any groups yet.</p>
+                  <Button asChild variant="link" className="mt-2">
+                    <Link href="/groups">Discover Groups</Link>
+                  </Button>
+                </div>
+              )}
+            </div>
+          </div>
+        )
+
+      case 'pages':
+        return (
+          <div className="space-y-6">
+            <div>
+              <h3 className="text-sm font-semibold mb-3">Followed Pages</h3>
+              {loadingMyPages ? (
+                <div className="flex justify-center p-4">
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary" />
+                </div>
+              ) : myPages.length > 0 ? (
+                <div className="space-y-3">
+                  {myPages.map((page) => (
+                    <div key={page.id} className="flex items-center justify-between p-3 bg-secondary/10 border border-border/50 rounded-xl">
+                      <Link href={`/pages/${page.id}`} className="flex items-center gap-3 hover:opacity-80">
+                        <Avatar className="h-10 w-10">
+                          <AvatarImage src={page.avatar_url || undefined} alt={page.name} />
+                          <AvatarFallback>{page.name?.[0]}</AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <p className="text-sm font-semibold">{page.name}</p>
+                          <p className="text-xs text-muted-foreground">@{page.handle}</p>
+                        </div>
+                      </Link>
+                      <Button variant="outline" size="sm" className="text-destructive hover:bg-destructive/10 border-destructive/20" onClick={() => handleUnfollowPage(page.id)}>
+                        Unfollow
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-6 text-muted-foreground">
+                  <p className="text-sm">You aren't following any pages yet.</p>
+                  <Button asChild variant="link" className="mt-2">
+                    <Link href="/pages">Discover Pages</Link>
+                  </Button>
+                </div>
+              )}
+            </div>
+          </div>
+        )
     }
   }
 
@@ -726,12 +905,53 @@ export default function SettingsPage() {
           </div>
         </div>
       )}
+
+      {/* Change Password Dialog */}
+      <Dialog open={showPasswordDialog} onOpenChange={setShowPasswordDialog}>
+        <DialogContent className="sm:max-w-md bg-background border border-border rounded-2xl p-6 shadow-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold">{t('set_change_password') || 'Change Password'}</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleChangePassword} className="space-y-4 pt-4">
+            <div className="space-y-2">
+              <Label htmlFor="new-password">New Password</Label>
+              <Input
+                id="new-password"
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="Enter new password"
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="confirm-password">Confirm Password</Label>
+              <Input
+                id="confirm-password"
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="Confirm new password"
+                required
+              />
+            </div>
+            <div className="flex justify-end gap-3 pt-2">
+              <Button type="button" variant="outline" onClick={() => setShowPasswordDialog(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={passwordLoading}>
+                {passwordLoading ? 'Updating...' : 'Update Password'}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
       <div className="container max-w-4xl mx-auto px-4 py-6">
         <h1 className="text-2xl font-bold mb-6">{t('nav_settings')}</h1>
         
         <div className="grid md:grid-cols-[240px_1fr] gap-6">
           {/* Sidebar Menu */}
-          <Card className="h-fit">
+          <Card className={cn("h-fit", !showSidebar && "hidden md:block")}>
             <CardContent className="p-2">
               <nav className="space-y-1">
                 {menuItems.map((item) => {
@@ -739,7 +959,10 @@ export default function SettingsPage() {
                   return (
                     <button
                       key={item.id}
-                      onClick={() => setActiveSection(item.id)}
+                      onClick={() => {
+                        setActiveSection(item.id)
+                        setShowSidebar(false)
+                      }}
                       className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                         activeSection === item.id
                           ? 'bg-secondary text-foreground'
@@ -766,8 +989,18 @@ export default function SettingsPage() {
           </Card>
           
           {/* Content Area */}
-          <Card>
-            <CardHeader>
+          <Card className={cn(showSidebar && "hidden md:block")}>
+            <CardHeader className="relative pr-4">
+              {!showSidebar && (
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="mb-2 md:hidden flex items-center gap-1 w-fit p-0 h-auto font-semibold text-primary"
+                  onClick={() => setShowSidebar(true)}
+                >
+                  <ArrowLeft className="h-4 w-4" /> Back
+                </Button>
+              )}
               <CardTitle>{menuItems.find(m => m.id === activeSection)?.label}</CardTitle>
               <CardDescription>
                 {activeSection === 'profile' && t('set_profile_desc')}
@@ -775,6 +1008,8 @@ export default function SettingsPage() {
                 {activeSection === 'privacy' && t('set_privacy_desc')}
                 {activeSection === 'appearance' && t('set_appearance_desc')}
                 {activeSection === 'language' && t('lang_desc')}
+                {activeSection === 'groups' && 'Manage your joined groups'}
+                {activeSection === 'pages' && 'Manage your followed pages'}
               </CardDescription>
             </CardHeader>
             <CardContent>
