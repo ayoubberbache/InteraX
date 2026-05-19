@@ -74,8 +74,8 @@ export function PostCard({ post, onDelete }: PostCardProps) {
 
   // Internal Share
   const [internalShareOpen, setInternalShareOpen] = useState(false)
-  const [conversations, setConversations] = useState<any[]>([])
-  const [loadingConvs, setLoadingConvs] = useState(false)
+  const [shareableUsers, setShareableUsers] = useState<any[]>([])
+  const [loadingShareable, setLoadingShareable] = useState(false)
 
   // Like animation
   const [likeAnim, setLikeAnim] = useState(false)
@@ -334,22 +334,38 @@ export function PostCard({ post, onDelete }: PostCardProps) {
   const openInternalShare = async () => {
     setShowShareMenu(false)
     setInternalShareOpen(true)
-    if (!conversations.length && currentUser) {
-      setLoadingConvs(true)
+    if (!shareableUsers.length && currentUser) {
+      setLoadingShareable(true)
       try {
-        const res = await fetch(`/api/conversations?userId=${currentUser.id}`)
-        if (res.ok) setConversations(await res.json())
+        const res = await fetch(`/api/users/relations?userId=${currentUser.id}&type=following`)
+        if (res.ok) {
+          const body = await res.json()
+          setShareableUsers(body.data || [])
+        }
       } catch (err) {
         console.error(err)
       }
-      setLoadingConvs(false)
+      setLoadingShareable(false)
     }
   }
 
-  const sendSharedPost = async (conv: any) => {
+  const sendSharedPost = async (targetUser: any) => {
     if (!currentUser) return
     try {
-      const res = await fetch('/api/messages', {
+      // 1. Get or create conversation with the user
+      const convRes = await fetch('/api/conversations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: currentUser.id,
+          targetUserId: targetUser.id
+        })
+      })
+      if (!convRes.ok) throw new Error('Failed to create/get conversation')
+      const conv = await convRes.json()
+
+      // 2. Send the message containing the post URL
+      const msgRes = await fetch('/api/messages', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -358,11 +374,12 @@ export function PostCard({ post, onDelete }: PostCardProps) {
           text: `Check out this post: ${window.location.origin}/post/${post.id}`
         })
       })
-      if (res.ok) {
+      if (msgRes.ok) {
         toast.success('Shared to chat!')
         setInternalShareOpen(false)
-      } else throw new Error()
-    } catch {
+      } else throw new Error('Failed to send message')
+    } catch (err) {
+      console.error(err)
       toast.error('Failed to share')
     }
   }
@@ -731,22 +748,23 @@ export function PostCard({ post, onDelete }: PostCardProps) {
             <DialogTitle>{t('post_share_chat_title')}</DialogTitle>
           </DialogHeader>
           <div className="py-4 space-y-2 max-h-[300px] overflow-y-auto pr-2">
-            {loadingConvs ? (
+            {loadingShareable ? (
               <div className="flex justify-center p-4"><div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary" /></div>
-            ) : conversations.length > 0 ? (
-              conversations.map(conv => (
+            ) : shareableUsers.length > 0 ? (
+              shareableUsers.map(u => (
                 <button
-                  key={conv.id}
-                  onClick={() => sendSharedPost(conv)}
+                  key={u.id}
+                  onClick={() => sendSharedPost(u)}
                   className="w-full flex items-center justify-between p-3 hover:bg-secondary rounded-lg transition-colors text-left"
                 >
                   <div className="flex items-center gap-3">
                     <Avatar className="h-10 w-10 border border-border">
-                      <AvatarImage src={conv.is_group ? conv.group_avatar : conv.other_user?.avatar_url} />
-                      <AvatarFallback>{(conv.is_group ? conv.group_name : conv.other_user?.full_name)?.[0] || '?'}</AvatarFallback>
+                      <AvatarImage src={u.avatar_url || undefined} />
+                      <AvatarFallback>{u.full_name?.[0] || '?'}</AvatarFallback>
                     </Avatar>
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium text-sm truncate">{conv.is_group ? conv.group_name : conv.other_user?.full_name}</p>
+                      <p className="font-medium text-sm truncate">{u.full_name}</p>
+                      <p className="text-xs text-muted-foreground truncate">@{u.username}</p>
                     </div>
                   </div>
                   <Button size="sm" variant="secondary" className="h-8 rounded-full ml-3 shrink-0">{t('post_share_send')}</Button>

@@ -286,7 +286,7 @@ export const translations = {
     post_high_quality: 'High Quality',
     post_share_chat_title: 'Share to Chat',
     post_share_send: 'Send',
-    post_no_convos: 'No conversations found.',
+    post_no_convos: 'No following accounts found.',
   },
   fr: {
     // Sidebar & Nav
@@ -573,7 +573,7 @@ export const translations = {
     post_high_quality: 'Haute qualité',
     post_share_chat_title: 'Partager dans le chat',
     post_share_send: 'Envoyer',
-    post_no_convos: 'Aucune conversation trouvée.',
+    post_no_convos: 'Aucun compte suivi trouvé.',
   },
   ar: {
     // Sidebar & Nav
@@ -860,7 +860,7 @@ export const translations = {
     post_high_quality: 'جودة عالية',
     post_share_chat_title: 'مشاركة في محادثة',
     post_share_send: 'إرسال',
-    post_no_convos: 'لم يتم العثور على محادثات.',
+    post_no_convos: 'لم يتم العثور على حسابات تتابعها.',
   }
 }
 

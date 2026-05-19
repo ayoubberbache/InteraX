@@ -18,6 +18,11 @@ export async function GET(req: NextRequest) {
          FROM follows f
          JOIN users u ON f.follower_id = u.id
          WHERE f.following_id = $1 AND f.status = 'accepted'
+           AND NOT EXISTS (
+             SELECT 1 FROM blocks b
+             WHERE (b.blocker_id = f.follower_id AND b.blocked_id = f.following_id)
+                OR (b.blocker_id = f.following_id AND b.blocked_id = f.follower_id)
+           )
          ORDER BY f.created_at DESC`,
         [userId]
       )
@@ -27,6 +32,11 @@ export async function GET(req: NextRequest) {
          FROM follows f
          JOIN users u ON f.following_id = u.id
          WHERE f.follower_id = $1 AND f.status = 'accepted'
+           AND NOT EXISTS (
+             SELECT 1 FROM blocks b
+             WHERE (b.blocker_id = f.follower_id AND b.blocked_id = f.following_id)
+                OR (b.blocker_id = f.following_id AND b.blocked_id = f.follower_id)
+           )
          ORDER BY f.created_at DESC`,
         [userId]
       )
