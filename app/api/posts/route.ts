@@ -1,11 +1,16 @@
 import { NextResponse, NextRequest } from 'next/server'
 import { query, queryOne, execute } from '@/backend/lib/db'
+import { isValidUuid } from '@/backend/lib/utils'
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
-  const userId = searchParams.get('userId')
-  const groupId = searchParams.get('group_id')
-  const pageId = searchParams.get('page_id')
+  const rawUserId = searchParams.get('userId')
+  const rawGroupId = searchParams.get('group_id')
+  const rawPageId = searchParams.get('page_id')
+  
+  const userId = isValidUuid(rawUserId) ? rawUserId : null
+  const groupId = isValidUuid(rawGroupId) ? rawGroupId : null
+  const pageId = isValidUuid(rawPageId) ? rawPageId : null
   const savedOnly = searchParams.get('savedOnly') === 'true'
 
   try {
@@ -31,6 +36,13 @@ export async function GET(req: NextRequest) {
       conditions.push(`(u.is_private = false OR p.user_id = $${viewerParamIndex} OR EXISTS (
         SELECT 1 FROM follows WHERE follower_id = $${viewerParamIndex} AND following_id = p.user_id AND status = 'accepted'
       ))`)
+
+      // Exclude posts where either party blocks the other
+      conditions.push(`NOT EXISTS (
+        SELECT 1 FROM blocks
+        WHERE (blocker_id = p.user_id AND blocked_id = $${viewerParamIndex})
+           OR (blocker_id = $${viewerParamIndex} AND blocked_id = p.user_id)
+      )`)
     } else {
       conditions.push(`u.is_private = false`)
     }

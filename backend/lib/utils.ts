@@ -28,3 +28,9 @@ export function formatTimeAgo(dateString: string | Date): string {
   if (seconds < 604800) return `${Math.floor(seconds / 86400)}d ago`
   return date.toLocaleDateString()
 }
+
+export function isValidUuid(id: string | null | undefined): boolean {
+  if (!id) return false
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+  return uuidRegex.test(id)
+}

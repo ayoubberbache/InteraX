@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, use } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { ArrowLeft, Grid3X3, Users, MessageCircle, UserCheck, UserPlus, Lock } from 'lucide-react'
 import { MainLayout } from '@/frontend/components/layout/main-layout'
 import { useAuth } from '@/backend/lib/auth-context'
@@ -18,6 +19,7 @@ import { cn } from '@/backend/lib/utils'
 
 export default function UserProfilePage(props: { params: Promise<{ id: string }> }) {
   const params = use(props.params)
+  const router = useRouter()
   const { currentUser } = useAuth()
 
   const [user, setUser] = useState<any>(null)
@@ -60,14 +62,34 @@ export default function UserProfilePage(props: { params: Promise<{ id: string }>
 
   const fetchUser = useCallback(async () => {
     try {
-      const res = await fetch(`/api/users?id=${params.id}`)
+      const res = await fetch(`/api/users?id=${params.id}&viewerId=${currentUser?.id || ''}`)
       if (!res.ok) { setNotFound(true); return }
       const { data } = await res.json()
       setUser(data)
     } catch {
       setNotFound(true)
     }
-  }, [params.id])
+  }, [params.id, currentUser])
+
+  const handleBlock = async () => {
+    if (!currentUser) return
+    if (!confirm(`Are you sure you want to block ${user?.full_name || 'this user'}?`)) return
+    try {
+      const res = await fetch('/api/users/block', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ blockerId: currentUser.id, blockedId: params.id })
+      })
+      if (res.ok) {
+        toast.success(`You blocked ${user?.full_name || 'this user'}`)
+        router.push('/')
+      } else {
+        toast.error('Failed to block user')
+      }
+    } catch {
+      toast.error('Error blocking user')
+    }
+  }
 
   const fetchPosts = useCallback(async () => {
     try {
@@ -227,6 +249,14 @@ export default function UserProfilePage(props: { params: Promise<{ id: string }>
                   </Button>
                   <Button variant="outline" size="sm" onClick={handleMessage} className="gap-1.5 rounded-full">
                     <MessageCircle className="h-4 w-4" />Message
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={handleBlock} 
+                    className="gap-1.5 rounded-full text-destructive hover:bg-destructive/10 border-destructive/20 hover:border-destructive transition-colors"
+                  >
+                    Block
                   </Button>
                 </div>
               )}

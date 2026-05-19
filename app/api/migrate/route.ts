@@ -46,7 +46,35 @@ export async function GET() {
     `)
     await execute(`CREATE INDEX IF NOT EXISTS idx_reports_entity_id ON reports(entity_id)`)
 
-    return NextResponse.json({ success: true, message: 'saved_posts, uploads, and reports tables created successfully' })
+    await execute(`
+      CREATE TABLE IF NOT EXISTS story_views (
+        id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        story_id   UUID NOT NULL REFERENCES stories(id) ON DELETE CASCADE,
+        user_id    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        created_at TIMESTAMPTZ DEFAULT now(),
+        UNIQUE(story_id, user_id)
+      )
+    `)
+    await execute(`CREATE INDEX IF NOT EXISTS idx_story_views_user_id ON story_views(user_id)`)
+
+    await execute(`
+      CREATE TABLE IF NOT EXISTS blocks (
+        id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        blocker_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        blocked_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        created_at TIMESTAMPTZ DEFAULT now(),
+        UNIQUE(blocker_id, blocked_id)
+      )
+    `)
+    await execute(`CREATE INDEX IF NOT EXISTS idx_blocks_blocker_id ON blocks(blocker_id)`)
+    await execute(`CREATE INDEX IF NOT EXISTS idx_blocks_blocked_id ON blocks(blocked_id)`)
+
+    try {
+      await execute(`ALTER TABLE messages ADD COLUMN IF NOT EXISTS reply_to_id UUID REFERENCES messages(id) ON DELETE SET NULL`)
+      await execute(`ALTER TABLE messages ADD COLUMN IF NOT EXISTS is_forwarded BOOLEAN DEFAULT false`)
+    } catch (e) { /* column may exist */ }
+
+    return NextResponse.json({ success: true, message: 'All tables and columns migrated successfully' })
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }

@@ -30,22 +30,23 @@ export default function SearchPage() {
 
   useEffect(() => {
     // Initial explore data
-    fetch('/api/users/suggestions')
+    const viewerId = currentUser?.id || ''
+    fetch(`/api/users/suggestions?viewerId=${viewerId}`)
       .then(r => r.json())
       .then(d => setSuggestedUsers(Array.isArray(d) ? d : []))
       .catch(console.error)
 
-    fetch('/api/posts')
+    fetch(`/api/posts?userId=${viewerId}`)
       .then(r => r.json())
       .then(d => setExplorePosts(Array.isArray(d) ? d : []))
       .catch(console.error)
-  }, [])
+  }, [currentUser])
 
   const doSearch = useCallback(async (q: string) => {
     try {
       const [uRes, pRes, gRes] = await Promise.all([
-        fetch(`/api/users?q=${encodeURIComponent(q)}`),
-        fetch(`/api/posts`),
+        fetch(`/api/users?q=${encodeURIComponent(q)}&viewerId=${currentUser?.id || ''}`),
+        fetch(`/api/posts?userId=${currentUser?.id || ''}`),
         fetch(`/api/groups`),
       ])
 

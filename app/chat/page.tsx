@@ -16,6 +16,8 @@ import {
   Sparkles,
   ChevronLeft,
   Plus,
+  X,
+  Share2
 } from 'lucide-react'
 import { InteraXLogo } from '@/frontend/components/ui/logo'
 import { MainLayout } from '@/frontend/components/layout/main-layout'
@@ -53,6 +55,11 @@ interface DbMessage {
   type?: string
   media_url?: string | null
   updated_at?: string
+  reply_to_id?: string | null
+  is_forwarded?: boolean
+  replied_content?: string | null
+  replied_sender_name?: string | null
+  sender_name?: string
 }
 
 interface DbConversation {
@@ -135,6 +142,12 @@ export default function ChatPage() {
   const [selectedGroupUsers, setSelectedGroupUsers] = useState<any[]>([])
   const [groupName, setGroupName] = useState('')
   const [groupAvatar, setGroupAvatar] = useState('')
+
+  // Reply & Forward states
+  const [replyingToMsg, setReplyingToMsg] = useState<DbMessage | null>(null)
+  const [forwardingMsg, setForwardingMsg] = useState<DbMessage | null>(null)
+  const [isForwardOpen, setIsForwardOpen] = useState(false)
+
   // Redirect if not logged in
   useEffect(() => {
     if (!isLoggedIn) router.push('/login')
@@ -282,6 +295,9 @@ export default function ChatPage() {
     const text = messageInput.trim()
     setMessageInput('')
 
+    const replyToId = replyingToMsg?.id
+    setReplyingToMsg(null)
+
     try {
       const res = await fetch('/api/messages', {
         method: 'POST',
@@ -289,7 +305,8 @@ export default function ChatPage() {
         body: JSON.stringify({
           conversationId: selectedConversation.id,
           text,
-          userId: currentUser.id
+          userId: currentUser.id,
+          replyToId
         })
       })
 
@@ -300,6 +317,40 @@ export default function ChatPage() {
       }
     } catch (err) {
       console.error(err)
+    }
+  }
+
+  const handleForwardMessage = async (targetConversationId: string) => {
+    if (!forwardingMsg || !currentUser) return
+    try {
+      const res = await fetch('/api/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          conversationId: targetConversationId,
+          text: forwardingMsg.content || '',
+          media_url: forwardingMsg.media_url,
+          type: forwardingMsg.type || 'text',
+          isForwarded: true,
+          userId: currentUser.id
+        })
+      })
+
+      if (res.ok) {
+        toast.success('Message forwarded successfully!')
+        if (selectedConversation?.id === targetConversationId) {
+          loadMessages()
+        }
+        loadConversations()
+      } else {
+        toast.error('Failed to forward message')
+      }
+    } catch (err) {
+      console.error(err)
+      toast.error('Error forwarding message')
+    } finally {
+      setIsForwardOpen(false)
+      setForwardingMsg(null)
     }
   }
 
@@ -448,7 +499,7 @@ export default function ChatPage() {
     }
     setIsSearching(true)
     try {
-      const res = await fetch(`/api/users?q=${encodeURIComponent(q.trim())}`)
+      const res = await fetch(`/api/users?q=${encodeURIComponent(q.trim())}&viewerId=${currentUser?.id}`)
       if (res.ok) {
         const { data } = await res.json()
         setUserSearchResults(data.filter((u: any) => u.id !== currentUser.id))
@@ -925,6 +976,25 @@ Tell users you can help them navigate the platform.`
                                     />
                                   ) : (
                                     <div className="space-y-2">
+                                      {m.is_forwarded && (
+                                        <div className="flex items-center gap-1 text-[9px] opacity-75 font-semibold italic mb-1">
+                                          <Share2 className="h-2.5 w-2.5" />
+                                          <span>Forwarded</span>
+                                        </div>
+                                      )}
+                                      {m.replied_content && m.replied_sender_name && (
+                                        <div className={cn(
+                                          "border-l-2 rounded-r px-2 py-1 text-[11px] mb-1 text-left",
+                                          isOwn ? "bg-white/10 border-white/60 text-white/90" : "bg-secondary/60 border-primary/50 text-foreground/90"
+                                        )}>
+                                          <p className="font-bold text-[9px] text-indigo-400">
+                                            {m.replied_sender_name}
+                                          </p>
+                                          <p className="truncate text-[10px] opacity-80">
+                                            {m.replied_content}
+                                          </p>
+                                        </div>
+                                      )}
                                       {m.type === 'image' && m.media_url && (
                                         <div className="relative aspect-auto max-w-sm overflow-hidden rounded-lg border border-border/50 shadow-inner bg-secondary/10">
                                           <img src={m.media_url} alt="Shared photo" className="max-h-80 w-full object-contain" />
@@ -986,6 +1056,21 @@ Tell users you can help them navigate the platform.`
                                 {isOwn ? (
                                   <>
                                     <DropdownMenuItem 
+                                      onClick={() => setReplyingToMsg(m)}
+                                      className="flex items-center gap-2 p-2 hover:bg-secondary rounded-lg cursor-pointer text-sm font-semibold text-foreground"
+                                    >
+                                      Reply
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem 
+                                      onClick={() => {
+                                        setForwardingMsg(m)
+                                        setIsForwardOpen(true)
+                                      }}
+                                      className="flex items-center gap-2 p-2 hover:bg-secondary rounded-lg cursor-pointer text-sm font-semibold text-foreground"
+                                    >
+                                      Forward
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem 
                                       onClick={() => setEditingMsg(m.id)}
                                       className="flex items-center gap-2 p-2 hover:bg-secondary rounded-lg cursor-pointer text-sm font-semibold text-foreground"
                                     >
@@ -999,12 +1084,29 @@ Tell users you can help them navigate the platform.`
                                     </DropdownMenuItem>
                                   </>
                                 ) : (
-                                  <DropdownMenuItem 
-                                    onClick={() => handleReact(m, '❤️')}
-                                    className="flex items-center gap-2 p-2 hover:bg-secondary rounded-lg cursor-pointer text-sm font-semibold text-foreground"
-                                  >
-                                    Like Message
-                                  </DropdownMenuItem>
+                                  <>
+                                    <DropdownMenuItem 
+                                      onClick={() => setReplyingToMsg(m)}
+                                      className="flex items-center gap-2 p-2 hover:bg-secondary rounded-lg cursor-pointer text-sm font-semibold text-foreground"
+                                    >
+                                      Reply
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem 
+                                      onClick={() => {
+                                        setForwardingMsg(m)
+                                        setIsForwardOpen(true)
+                                      }}
+                                      className="flex items-center gap-2 p-2 hover:bg-secondary rounded-lg cursor-pointer text-sm font-semibold text-foreground"
+                                    >
+                                      Forward
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem 
+                                      onClick={() => handleReact(m, '❤️')}
+                                      className="flex items-center gap-2 p-2 hover:bg-secondary rounded-lg cursor-pointer text-sm font-semibold text-foreground"
+                                    >
+                                      Like Message
+                                    </DropdownMenuItem>
+                                  </>
                                 )}
                               </DropdownMenuContent>
                             </DropdownMenu>
@@ -1023,6 +1125,24 @@ Tell users you can help them navigate the platform.`
 
                 {/* Input Area */}
                 <div className="p-4 bg-background border-t border-border">
+                  {replyingToMsg && (
+                    <div className="flex items-center justify-between gap-3 px-4 py-2 mb-2 bg-secondary/30 rounded-xl border border-border/50 max-w-4xl mx-auto animate-in slide-in-from-bottom-2 duration-200">
+                      <div className="flex items-center gap-2 overflow-hidden">
+                        <div className="h-6 w-1 bg-indigo-500 rounded animate-pulse" />
+                        <div className="text-left text-xs overflow-hidden">
+                          <p className="font-bold text-indigo-400 text-[10px]">
+                            Replying to {replyingToMsg.sender_id === currentUser.id ? 'You' : 'User'}
+                          </p>
+                          <p className="text-muted-foreground truncate max-w-md text-[11px]">
+                            {replyingToMsg.content || (replyingToMsg.type === 'image' ? '📷 Photo' : replyingToMsg.type === 'audio' ? '🎵 Audio' : 'Attachment')}
+                          </p>
+                        </div>
+                      </div>
+                      <Button variant="ghost" size="icon" className="h-6 w-6 rounded-full hover:bg-secondary shrink-0" onClick={() => setReplyingToMsg(null)}>
+                        <X className="h-3 w-3 text-muted-foreground" />
+                      </Button>
+                    </div>
+                  )}
                   <div className="flex items-center gap-2 max-w-4xl mx-auto">
                     <input
                       type="file"
@@ -1135,6 +1255,41 @@ Tell users you can help them navigate the platform.`
           </div>
         </div>
       </div>
+      {/* Forward Message Dialog */}
+      <Dialog open={isForwardOpen} onOpenChange={setIsForwardOpen}>
+        <DialogContent className="sm:max-w-md bg-popover text-foreground border border-border rounded-2xl shadow-xl">
+          <DialogHeader>
+            <DialogTitle>Forward Message</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <p className="text-xs text-muted-foreground italic max-w-sm truncate bg-secondary/35 p-2 rounded-lg">
+              "{forwardingMsg?.content || '📷 Media attachment'}"
+            </p>
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Select chat to forward to</h3>
+            <ScrollArea className="h-[250px] pr-2">
+              <div className="space-y-2">
+                {conversations.map(conv => (
+                  <div key={conv.id} className="flex items-center justify-between p-2 hover:bg-secondary/40 rounded-xl transition-colors">
+                    <div className="flex items-center gap-3">
+                      <Avatar className="h-8 w-8">
+                        <AvatarImage src={conv.other_user?.avatar_url || undefined} />
+                        <AvatarFallback>{conv.other_user?.full_name?.[0]}</AvatarFallback>
+                      </Avatar>
+                      <div className="text-left">
+                        <p className="text-sm font-semibold">{conv.other_user?.full_name}</p>
+                        <p className="text-xs text-muted-foreground">@{conv.other_user?.username}</p>
+                      </div>
+                    </div>
+                    <Button size="sm" variant="outline" onClick={() => handleForwardMessage(conv.id)}>
+                      Send
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
+          </div>
+        </DialogContent>
+      </Dialog>
     </MainLayout>
   )
 }

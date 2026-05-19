@@ -7,9 +7,16 @@ export async function GET(req: NextRequest) {
 
   try {
     const messages = await query(`
-      SELECT * FROM messages
-      WHERE conversation_id = $1
-      ORDER BY created_at ASC
+      SELECT m.*,
+             u.full_name as sender_name,
+             r.content as replied_content,
+             ru.full_name as replied_sender_name
+      FROM messages m
+      LEFT JOIN users u ON m.sender_id = u.id
+      LEFT JOIN messages r ON m.reply_to_id = r.id
+      LEFT JOIN users ru ON r.sender_id = ru.id
+      WHERE m.conversation_id = $1
+      ORDER BY m.created_at ASC
     `, [conversationId])
 
     const msgIds = messages.map(m => m.id)
@@ -37,14 +44,14 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
-    const { conversationId, text, userId, media_url, type = 'text' } = body
+    const { conversationId, text, userId, media_url, type = 'text', replyToId, isForwarded } = body
 
     if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     const msg = await queryOne(`
-      INSERT INTO messages (conversation_id, sender_id, content, media_url, type)
-      VALUES ($1, $2, $3, $4, $5) RETURNING *
-    `, [conversationId, userId, text?.trim() || '', media_url || null, type])
+      INSERT INTO messages (conversation_id, sender_id, content, media_url, type, reply_to_id, is_forwarded)
+      VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *
+    `, [conversationId, userId, text?.trim() || '', media_url || null, type, replyToId || null, isForwarded || false])
 
     try {
       const lastMsgText = text?.trim() || (type === 'image' ? 'Sent a photo' : type === 'audio' ? 'Sent a voice message' : 'Sent a file')
@@ -55,7 +62,19 @@ export async function POST(req: NextRequest) {
       console.error('[messages POST] conversation update error:', updateError)
     }
 
-    return NextResponse.json(msg)
+    const formattedMsg = await queryOne(`
+      SELECT m.*,
+             u.full_name as sender_name,
+             r.content as replied_content,
+             ru.full_name as replied_sender_name
+      FROM messages m
+      LEFT JOIN users u ON m.sender_id = u.id
+      LEFT JOIN messages r ON m.reply_to_id = r.id
+      LEFT JOIN users ru ON r.sender_id = ru.id
+      WHERE m.id = $1
+    `, [msg.id])
+
+    return NextResponse.json(formattedMsg)
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 })
   }

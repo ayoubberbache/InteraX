@@ -1,10 +1,12 @@
 import { NextResponse, NextRequest } from 'next/server'
 import { query, queryOne, execute } from '@/backend/lib/db'
+import { isValidUuid } from '@/backend/lib/utils'
 
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url)
-    const viewerId = searchParams.get('viewerId')
+    const rawViewerId = searchParams.get('viewerId')
+    const viewerId = isValidUuid(rawViewerId) ? rawViewerId : null
 
     let stories;
     if (viewerId) {
@@ -17,6 +19,11 @@ export async function GET(req: NextRequest) {
         FROM stories s
         LEFT JOIN users u ON s.user_id = u.id
         WHERE s.expires_at > NOW()
+          AND NOT EXISTS (
+            SELECT 1 FROM blocks
+            WHERE (blocker_id = s.user_id AND blocked_id = $1)
+               OR (blocker_id = $1 AND blocked_id = s.user_id)
+          )
           AND (u.is_private = false OR s.user_id = $1 OR EXISTS (
             SELECT 1 FROM follows WHERE follower_id = $1 AND following_id = s.user_id AND status = 'accepted'
           ))

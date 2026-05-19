@@ -9,7 +9,7 @@ import {
   Lock, 
   Palette, 
   Globe, 
-  HelpCircle, LogOut, ChevronRight, Moon, Sun, Monitor, Shield, Eye, Volume2, Mail, Smartphone 
+  HelpCircle, LogOut, ChevronRight, Moon, Sun, Monitor, Shield, Eye, Volume2, Mail, Smartphone, UserX
 } from 'lucide-react'
 import { MainLayout } from '@/frontend/components/layout/main-layout'
 import { useAuth } from '@/backend/lib/auth-context'
@@ -28,7 +28,7 @@ import Cropper from 'react-easy-crop'
 import getCroppedImg from '@/frontend/lib/cropImage'
 import { uploadMedia } from '@/backend/lib/upload'
 
-type SettingsSection = 'profile' | 'notifications' | 'privacy' | 'appearance' | 'language'
+type SettingsSection = 'profile' | 'notifications' | 'privacy' | 'appearance' | 'language' | 'blocks'
 
 export default function SettingsPage() {
   const router = useRouter()
@@ -39,6 +39,90 @@ export default function SettingsPage() {
   const [mounted, setMounted] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
+
+  // Block List states
+  const [blockedUsers, setBlockedUsers] = useState<any[]>([])
+  const [loadingBlocks, setLoadingBlocks] = useState(false)
+  const [blockSearchQuery, setBlockSearchQuery] = useState('')
+  const [blockSearchResults, setBlockSearchResults] = useState<any[]>([])
+
+  const fetchBlockedUsers = async () => {
+    if (!currentUser) return
+    setLoadingBlocks(true)
+    try {
+      const res = await fetch(`/api/users/block?userId=${currentUser.id}`)
+      if (res.ok) {
+        const { data } = await res.json()
+        setBlockedUsers(data || [])
+      }
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setLoadingBlocks(false)
+    }
+  }
+
+  useEffect(() => {
+    if (activeSection === 'blocks') {
+      fetchBlockedUsers()
+    }
+  }, [activeSection])
+
+  const handleSearchToBlock = async (q: string) => {
+    setBlockSearchQuery(q)
+    if (q.trim().length < 1) {
+      setBlockSearchResults([])
+      return
+    }
+    try {
+      const res = await fetch(`/api/users?q=${encodeURIComponent(q.trim())}&viewerId=${currentUser?.id}`)
+      if (res.ok) {
+        const { data } = await res.json()
+        setBlockSearchResults(
+          data.filter((u: any) => u.id !== currentUser.id && !blockedUsers.find(b => b.id === u.id))
+        )
+      }
+    } catch {}
+  }
+
+  const handleBlockUser = async (blockedId: string) => {
+    if (!currentUser) return
+    try {
+      const res = await fetch('/api/users/block', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ blockerId: currentUser.id, blockedId })
+      })
+      if (res.ok) {
+        toast.success('User blocked successfully')
+        setBlockSearchQuery('')
+        setBlockSearchResults([])
+        fetchBlockedUsers()
+      } else {
+        toast.error('Failed to block user')
+      }
+    } catch {
+      toast.error('Error blocking user')
+    }
+  }
+
+  const handleUnblock = async (blockedId: string) => {
+    if (!currentUser) return
+    try {
+      const res = await fetch(`/api/users/block?blockerId=${currentUser.id}&blockedId=${blockedId}`, {
+        method: 'DELETE'
+      })
+      if (res.ok) {
+        toast.success('User unblocked successfully')
+        setBlockedUsers(prev => prev.filter(u => u.id !== blockedId))
+      } else {
+        toast.error('Failed to unblock user')
+      }
+    } catch (err) {
+      console.error(err)
+      toast.error('Error unblocking user')
+    }
+  }
   
   // Form states
   const [name, setName] = useState(currentUser?.name || '')
@@ -97,6 +181,7 @@ export default function SettingsPage() {
     { id: 'privacy' as const, icon: Lock, label: t('set_privacy') },
     { id: 'appearance' as const, icon: Palette, label: t('set_appearance') },
     { id: 'language' as const, icon: Globe, label: t('set_language') },
+    { id: 'blocks' as const, icon: UserX, label: 'Blocked Users' },
   ]
 
   const handleLogout = () => {
@@ -489,6 +574,82 @@ export default function SettingsPage() {
                   {language === lang.code && <div className="h-2 w-2 rounded-full bg-primary shadow-[0_0_8px_rgba(255,32,78,0.5)]" />}
                 </button>
               ))}
+            </div>
+          </div>
+        )
+
+      case 'blocks':
+        return (
+          <div className="space-y-6">
+            <div className="space-y-2">
+              <Label>Block a new user</Label>
+              <div className="flex gap-2">
+                <Input 
+                  placeholder="Search username to block..." 
+                  value={blockSearchQuery} 
+                  onChange={(e) => handleSearchToBlock(e.target.value)}
+                />
+              </div>
+              {blockSearchResults.length > 0 && (
+                <Card className="mt-2 border-border/80 shadow-md">
+                  <CardContent className="p-2 space-y-2 max-h-48 overflow-y-auto bg-card">
+                    {blockSearchResults.map(u => (
+                      <div key={u.id} className="flex items-center justify-between p-2 hover:bg-secondary/40 rounded-lg">
+                        <div className="flex items-center gap-3">
+                          <Avatar className="h-8 w-8">
+                            <AvatarImage src={u.avatar_url || undefined} />
+                            <AvatarFallback>{u.full_name?.[0]}</AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <p className="text-xs font-semibold">{u.full_name}</p>
+                            <p className="text-[10px] text-muted-foreground">@{u.username}</p>
+                          </div>
+                        </div>
+                        <Button 
+                          size="sm" 
+                          variant="destructive" 
+                          onClick={() => handleBlockUser(u.id)}
+                        >
+                          Block
+                        </Button>
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+            
+            <Separator />
+            
+            <div>
+              <h3 className="text-sm font-semibold mb-3">Blocked Accounts</h3>
+              {loadingBlocks ? (
+                <div className="flex justify-center p-4">
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary" />
+                </div>
+              ) : blockedUsers.length > 0 ? (
+                <div className="space-y-3">
+                  {blockedUsers.map((user) => (
+                    <div key={user.id} className="flex items-center justify-between p-3 bg-secondary/10 border border-border/50 rounded-xl">
+                      <div className="flex items-center gap-3">
+                        <Avatar className="h-10 w-10">
+                          <AvatarImage src={user.avatar_url || undefined} alt={user.full_name} />
+                          <AvatarFallback>{user.full_name?.[0]}</AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <p className="text-sm font-semibold">{user.full_name}</p>
+                          <p className="text-xs text-muted-foreground">@{user.username}</p>
+                        </div>
+                      </div>
+                      <Button variant="outline" size="sm" onClick={() => handleUnblock(user.id)}>
+                        Unblock
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">You haven't blocked any users yet.</p>
+              )}
             </div>
           </div>
         )

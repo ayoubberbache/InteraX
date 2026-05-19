@@ -1,15 +1,23 @@
 import { NextResponse, NextRequest } from 'next/server'
 import { query, queryOne, execute } from '@/backend/lib/db'
+import { isValidUuid } from '@/backend/lib/utils'
 
 export async function GET(req: NextRequest) {
   const userId = req.nextUrl.searchParams.get('userId')
-  if (!userId) return NextResponse.json({ error: 'userId is required' }, { status: 400 })
+  if (!userId || !isValidUuid(userId)) {
+    return NextResponse.json([])
+  }
 
   try {
     const conversations = await query(`
-      SELECT * FROM conversations
-      WHERE $1 = ANY(participant_ids)
-      ORDER BY last_message_time DESC
+      SELECT c.* FROM conversations c
+      WHERE $1 = ANY(c.participant_ids)
+        AND NOT EXISTS (
+          SELECT 1 FROM blocks b
+          WHERE (b.blocker_id = $1 AND b.blocked_id = ANY(c.participant_ids))
+             OR (b.blocked_id = $1 AND b.blocker_id = ANY(c.participant_ids))
+        )
+      ORDER BY c.last_message_time DESC
     `, [userId])
 
     return NextResponse.json(conversations)
