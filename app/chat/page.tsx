@@ -1,8 +1,8 @@
 'use client'
 
 import EmojiPicker from "emoji-picker-react"
-import { useState, useEffect, useRef, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect, useRef, useCallback, Suspense } from 'react'
+import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import {
   Send,
@@ -90,23 +90,28 @@ function isSingleEmoji(str: string): boolean {
   if (!str) return false;
   const trimmed = str.trim();
   if (!trimmed) return false;
-  
-  const onlyEmojis = /^[\p{Extended_Pictographic}\p{Emoji_Presentation}\p{Emoji_Component}\u200d\ufe0f\s]+$/u.test(trimmed);
-  if (!onlyEmojis) return false;
 
   try {
     const segments = Array.from(new Intl.Segmenter('en', { granularity: 'grapheme' }).segment(trimmed));
     const nonWhitespace = segments.filter(s => s.segment.trim().length > 0);
-    return nonWhitespace.length === 1;
+    if (nonWhitespace.length !== 1) return false;
+
+    const char = nonWhitespace[0].segment;
+    // Ultra-robust standard emoji Unicode check
+    const isEmoji = /[\p{Emoji}\p{Extended_Pictographic}\u200d\ufe0f]/u.test(char);
+    return isEmoji;
   } catch (e) {
-    return trimmed.length <= 10; 
+    const isEmojiOnly = /^[\p{Emoji}\p{Extended_Pictographic}\u200d\ufe0f\s]+$/u.test(trimmed);
+    return isEmojiOnly && trimmed.length <= 8;
   }
 }
 
 // Bot storage no longer uses local storage, relies on DB endpoints
 
-export default function ChatPage() {
+function ChatPageContent() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const pathname = usePathname()
   const { currentUser, isLoggedIn } = useAuth()
   const { t } = useLanguage()
 
@@ -137,6 +142,9 @@ export default function ChatPage() {
   const [botError, setBotError] = useState<string | null>(null)
   const abortRef = useRef<AbortController | null>(null)
   const [editingMsg, setEditingMsg] = useState<string | null>(null)
+  
+  const newChatSearchTimeout = useRef<NodeJS.Timeout | null>(null)
+  const latestNewChatQuery = useRef('')
   
   const [recentEmojis, setRecentEmojis] = useState<string[]>(() => {
     if (typeof window !== 'undefined') {
@@ -266,6 +274,28 @@ export default function ChatPage() {
     return () => clearInterval(interval)
   }, [currentUser, loadConversations])
 
+  // Synchronize URL parameters to chat state (bot or specific conversation ID)
+  useEffect(() => {
+    const convId = searchParams.get('conv')
+    const bot = searchParams.get('bot')
+
+    if (bot === 'true') {
+      setIsBotSelected(true)
+      setSelectedConversation(null)
+    } else if (convId) {
+      if (conversations.length > 0) {
+        const found = conversations.find(c => c.id === convId)
+        if (found) {
+          setSelectedConversation(found)
+          setIsBotSelected(false)
+        }
+      }
+    } else {
+      setSelectedConversation(null)
+      setIsBotSelected(false)
+    }
+  }, [searchParams, conversations])
+
   // Load messages when conversation selected
   const loadMessages = useCallback(async () => {
     if (!selectedConversation) return
@@ -306,18 +336,20 @@ export default function ChatPage() {
 
   /* ─── Handlers ─── */
 
-  const handleSendMessage = async () => {
-    if (!messageInput.trim()) return
+  const handleSendMessage = async (overrideText?: string) => {
+    const text = overrideText || messageInput.trim()
+    if (!text) return
 
     if (isBotSelected) {
-      sendBotMessage()
+      sendBotMessage(text)
       return
     }
 
     if (!selectedConversation) return
 
-    const text = messageInput.trim()
-    setMessageInput('')
+    if (!overrideText) {
+      setMessageInput('')
+    }
 
     const replyToId = replyingToMsg?.id
     setReplyingToMsg(null)
@@ -517,24 +549,42 @@ export default function ChatPage() {
     }
   }
 
-  const handleSearchUsers = async (q: string) => {
-    setNewChatSearchQuery(q)
-    if (q.trim().length < 1) {
-      setUserSearchResults([])
-      return
-    }
+  const doNewChatSearch = useCallback(async (q: string) => {
+    latestNewChatQuery.current = q
     setIsSearching(true)
     try {
-      const res = await fetch(`/api/users?q=${encodeURIComponent(q.trim())}&viewerId=${currentUser?.id}`)
-      if (res.ok) {
+      const res = await fetch(`/api/users?q=${encodeURIComponent(q)}&viewerId=${currentUser?.id}`)
+      if (res.ok && latestNewChatQuery.current === q) {
         const { data } = await res.json()
-        setUserSearchResults(data.filter((u: any) => u.id !== currentUser.id))
+        setUserSearchResults((data || []).filter((u: any) => u.id !== currentUser?.id))
       }
     } catch (err) {
       console.error(err)
     } finally {
-      setIsSearching(false)
+      if (latestNewChatQuery.current === q) {
+        setIsSearching(false)
+      }
     }
+  }, [currentUser?.id])
+
+  const handleSearchUsers = (q: string) => {
+    setNewChatSearchQuery(q)
+    if (q.trim().length < 1) {
+      latestNewChatQuery.current = ''
+      setUserSearchResults([])
+      setIsSearching(false)
+      if (newChatSearchTimeout.current) {
+        clearTimeout(newChatSearchTimeout.current)
+      }
+      return
+    }
+    setIsSearching(true)
+    if (newChatSearchTimeout.current) {
+      clearTimeout(newChatSearchTimeout.current)
+    }
+    newChatSearchTimeout.current = setTimeout(() => {
+      doNewChatSearch(q.trim())
+    }, 300)
   }
 
   const toggleGroupUser = (user: any) => {
@@ -576,7 +626,11 @@ export default function ChatPage() {
           const filtered = prev.filter(p => p.id !== expanded.id)
           return [expanded, ...filtered]
         })
-        setSelectedConversation(expanded)
+        
+        const params = new URLSearchParams()
+        params.set('conv', conv.id)
+        router.replace(`${pathname}?${params.toString()}`)
+
         setIsBotSelected(false)
         setSelectedGroupUsers([])
         setGroupName('')
@@ -587,9 +641,34 @@ export default function ChatPage() {
     }
   }
 
+  // Resolve user query parameters (from profile page messages button)
+  useEffect(() => {
+    const targetUserId = searchParams.get('userId')
+    if (targetUserId && currentUser && conversations.length > 0) {
+      const existing = conversations.find(c => 
+        c.participant_ids.includes(targetUserId) && c.participant_ids.length === 2
+      )
+      if (existing) {
+        const params = new URLSearchParams()
+        params.set('conv', existing.id)
+        router.replace(`${pathname}?${params.toString()}`)
+      } else {
+        // Fetch user and start conversation
+        fetch(`/api/users?id=${targetUserId}`)
+          .then(res => res.json())
+          .then(({ data }) => {
+            if (data) {
+              startNewConversation(data)
+            }
+          })
+          .catch(console.error)
+      }
+    }
+  }, [searchParams, currentUser, conversations, router, pathname])
+
   /* ─── AI Bot Streaming Logic ─── */
-  const sendBotMessage = async () => {
-    const text = messageInput.trim()
+  const sendBotMessage = async (overrideText?: string) => {
+    const text = overrideText || messageInput.trim()
     if (!text || isStreaming || !currentUser) return
 
     let currentSessionId = botSessionId
@@ -619,7 +698,9 @@ export default function ChatPage() {
     const newBotMsgs = [...botMessages, newUserMsg]
     setBotMessages(newBotMsgs)
 
-    setMessageInput('')
+    if (!overrideText) {
+      setMessageInput('')
+    }
     setIsStreaming(true)
     setBotError(null)
 
@@ -718,15 +799,14 @@ Tell users you can help them navigate the platform.`
   })
 
   const goBackToList = () => {
-    setSelectedConversation(null)
-    setIsBotSelected(false)
+    router.push(pathname)
   }
 
   const isAnyChatOpen = selectedConversation !== null || isBotSelected
 
   return (
-    <MainLayout>
-      <div className="w-full h-[calc(100vh-3.5rem)] flex flex-col">
+    <MainLayout hideHeaderMobile={isAnyChatOpen} hideBottomNavMobile={isAnyChatOpen}>
+      <div className="w-full h-full flex flex-col">
         <div className="grid md:grid-cols-[320px_1fr] flex-1 min-h-0 border border-border rounded-none md:rounded-lg overflow-hidden bg-background">
           
           {/* ═══ Conversations List ═══ */}
@@ -844,7 +924,11 @@ Tell users you can help them navigate the platform.`
             <ScrollArea className="flex-1 overflow-y-auto">
               {/* InteraX CB AI */}
               <button
-                onClick={() => { setIsBotSelected(true); setSelectedConversation(null); }}
+                onClick={() => {
+                  const params = new URLSearchParams()
+                  params.set('bot', 'true')
+                  router.push(`${pathname}?${params.toString()}`)
+                }}
                 className={cn('w-full flex items-center gap-3 p-4 hover:bg-secondary/50 border-b border-border/50 text-left', isBotSelected && 'bg-secondary')}
               >
                 <div className="relative">
@@ -862,7 +946,11 @@ Tell users you can help them navigate the platform.`
               {filteredConversations.map((conv) => (
                 <button
                   key={conv.id}
-                  onClick={() => { setSelectedConversation(conv); setIsBotSelected(false); }}
+                  onClick={() => {
+                    const params = new URLSearchParams()
+                    params.set('conv', conv.id)
+                    router.push(`${pathname}?${params.toString()}`)
+                  }}
                   className={cn('w-full flex items-center gap-3 p-4 hover:bg-secondary/50 border-b border-border/50 text-left transition-colors', selectedConversation?.id === conv.id && 'bg-secondary')}
                 >
                   <Avatar className="h-12 w-12">
@@ -890,15 +978,15 @@ Tell users you can help them navigate the platform.`
             {isAnyChatOpen ? (
               <>
                 {/* Header */}
-                <div className="h-12 md:h-14 border-b border-border flex items-center px-3 md:px-4 bg-background justify-between">
-                  <div className="flex items-center gap-2 md:gap-3 min-w-0">
+                <div className="h-11 md:h-14 border-b border-border flex items-center px-2.5 md:px-4 bg-background justify-between shrink-0">
+                  <div className="flex items-center gap-1.5 md:gap-3 min-w-0">
                     <Button 
                       variant="ghost" 
                       size="icon" 
                       className="md:hidden h-8 w-8 -ml-1 rounded-full text-foreground/80 hover:bg-secondary/60 active:scale-95 shrink-0 flex items-center justify-center" 
                       onClick={goBackToList}
                     >
-                      <ArrowLeft className="h-4 w-4" />
+                      <ArrowLeft className="h-5 w-5 text-foreground/90" />
                     </Button>
                     {isBotSelected ? (
                       <>
@@ -964,12 +1052,12 @@ Tell users you can help them navigate the platform.`
                       botMessages.map((m) => (
                         <div key={m.id} className={cn('flex', m.role === 'user' ? 'justify-end' : 'justify-start')}>
                           <div className={cn(
-                            'max-w-[80%] rounded-2xl px-3 py-1.5 md:px-4 md:py-2 text-xs md:text-sm shadow-sm transition-all',
+                            'max-w-[80%] rounded-2xl px-2.5 py-1.5 md:px-4 md:py-2 text-[11.5px] md:text-sm shadow-sm transition-all',
                             m.role === 'user' 
                               ? 'bg-gradient-to-r from-[#4B0082] to-[#E6E6FA] text-white rounded-tr-none' 
                               : 'bg-background border border-border rounded-tl-none'
                           )}>
-                            <p className="whitespace-pre-wrap leading-relaxed text-xs md:text-sm">{m.content}</p>
+                            <p className="whitespace-pre-wrap leading-relaxed text-[11.5px] md:text-sm">{m.content}</p>
                             <p className={cn('text-[9px] md:text-[10px] mt-1 opacity-70', m.role === 'user' ? 'text-right' : 'text-left')}>
                               {formatTimeAgo(m.timestamp)}
                             </p>
@@ -982,14 +1070,14 @@ Tell users you can help them navigate the platform.`
                         const isEmojiOnly = isSingleEmoji(m.content || '')
                         
                         return (
-                          <div key={m.id} className={cn('flex message-bubble', isOwn ? 'justify-end' : 'justify-start')}>
+                          <div key={m.id} className={cn('flex message-bubble', isOwn ? 'justify-end' : 'justify-start', isEmojiOnly && 'mb-6')}>
                             <DropdownMenu onOpenChange={(open) => { if (!open) setActiveReactionPickerId(null); }}>
                               <DropdownMenuTrigger asChild>
                                 <div className={cn(
                                   'group relative max-w-[80%] md:max-w-[75%] transition-all cursor-pointer select-none active:scale-[0.99] outline-none',
                                   isEmojiOnly 
-                                    ? 'text-[50px] md:text-[80px] leading-none drop-shadow-xl animate-in zoom-in spin-in-2' 
-                                    : cn('px-3 py-1.5 md:px-4 md:py-2 text-xs md:text-sm shadow-sm', isOwn 
+                                    ? 'text-[40px] md:text-[64px] leading-none drop-shadow-xl animate-in zoom-in spin-in-2' 
+                                    : cn('px-2.5 py-1.5 md:px-3 md:py-2 text-[11px] md:text-[13px] shadow-sm', isOwn 
                                       ? 'bg-gradient-to-r from-[#4B0082] to-[#6366f1] text-white rounded-2xl rounded-tr-none' 
                                       : 'bg-background border border-border rounded-2xl rounded-tl-none text-foreground'
                                     )
@@ -1039,7 +1127,7 @@ Tell users you can help them navigate the platform.`
                                         </div>
                                       )}
                                       {m.content && (
-                                        <p className={cn("leading-relaxed whitespace-pre-wrap text-xs md:text-sm", isEmojiOnly && "text-center")}>
+                                        <p className={cn("leading-relaxed whitespace-pre-wrap", isEmojiOnly ? "text-[40px] md:text-[64px] text-center" : "text-[11px] md:text-[13px]")}>
                                           {m.content}
                                         </p>
                                       )}
@@ -1196,7 +1284,7 @@ Tell users you can help them navigate the platform.`
                 </div>
 
                 {/* Input Area */}
-                <div className="p-4 bg-background border-t border-border">
+                <div className="p-2 md:p-4 bg-background border-t border-border shrink-0">
                   {replyingToMsg && (
                     <div className="flex items-center justify-between gap-3 px-4 py-2 mb-2 bg-secondary/30 rounded-xl border border-border/50 max-w-4xl mx-auto animate-in slide-in-from-bottom-2 duration-200">
                       <div className="flex items-center gap-2 overflow-hidden">
@@ -1249,7 +1337,7 @@ Tell users you can help them navigate the platform.`
                             handleSendMessage()
                           }
                         }}
-                        className="pr-16 bg-secondary/30 border-0 focus-visible:ring-1 focus-visible:ring-primary/50"
+                        className="pr-16 h-9 md:h-10 text-xs md:text-sm bg-secondary/30 border-0 focus-visible:ring-1 focus-visible:ring-primary/50"
                       />
                       
                       {/* Emoji Button */}
@@ -1266,7 +1354,11 @@ Tell users you can help them navigate the platform.`
                         <div className="absolute bottom-12 right-0 z-50 shadow-xl border border-border/50 rounded-lg">
                           <EmojiPicker
                             onEmojiClick={(emojiData: any) => {
-                              setMessageInput(prev => prev + emojiData.emoji)
+                              if (!messageInput.trim()) {
+                                handleSendMessage(emojiData.emoji)
+                              } else {
+                                setMessageInput(prev => prev + emojiData.emoji)
+                              }
                               setShowEmojiPicker(false)
                             }}
                           />
@@ -1280,11 +1372,11 @@ Tell users you can help them navigate the platform.`
                     </div>
                     <Button
                       size="icon"
-                      onClick={handleSendMessage}
+                      onClick={() => handleSendMessage()}
                       disabled={!messageInput.trim() || isStreaming}
-                      className="shrink-0 bg-gradient-to-r from-[#4B0082] to-[#E6E6FA] hover:from-[#CC1A3E] hover:to-[#4A0B34] text-white border-0 shadow-md transition-all active:scale-95"
+                      className="shrink-0 h-8 w-8 md:h-9 md:w-9 bg-gradient-to-r from-[#4B0082] to-[#E6E6FA] hover:from-[#CC1A3E] hover:to-[#4A0B34] text-white border-0 shadow-md transition-all active:scale-95"
                     >
-                      <Send className="h-5 w-5" />
+                      <Send className="h-4 w-4 md:h-5 md:w-5" />
                     </Button>
                   </div>
                 </div>
@@ -1363,5 +1455,19 @@ Tell users you can help them navigate the platform.`
         </DialogContent>
       </Dialog>
     </MainLayout>
+  )
+}
+
+export default function ChatPage() {
+  return (
+    <Suspense fallback={
+      <MainLayout>
+        <div className="flex items-center justify-center min-h-[50vh]">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        </div>
+      </MainLayout>
+    }>
+      <ChatPageContent />
+    </Suspense>
   )
 }

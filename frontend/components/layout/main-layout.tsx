@@ -11,9 +11,15 @@ import { useAuth } from '@/backend/lib/auth-context'
 
 interface MainLayoutProps {
   children: React.ReactNode
+  hideHeaderMobile?: boolean
+  hideBottomNavMobile?: boolean
 }
 
-export function MainLayout({ children }: MainLayoutProps) {
+export function MainLayout({ 
+  children,
+  hideHeaderMobile = false,
+  hideBottomNavMobile = false
+}: MainLayoutProps) {
   const pathname = usePathname()
   const { currentUser } = useAuth()
   
@@ -57,6 +63,25 @@ export function MainLayout({ children }: MainLayoutProps) {
     return () => clearInterval(interval)
   }, [currentUser])
   
+  useEffect(() => {
+    if (typeof document !== 'undefined') {
+      document.body.style.pointerEvents = 'auto'
+      if (pathname === '/chat') {
+        document.body.style.overflow = 'hidden'
+        document.documentElement.style.overflow = 'hidden'
+      } else {
+        document.body.style.overflow = 'auto'
+        document.documentElement.style.overflow = 'auto'
+      }
+    }
+    return () => {
+      if (typeof document !== 'undefined') {
+        document.body.style.overflow = 'auto'
+        document.documentElement.style.overflow = 'auto'
+      }
+    }
+  }, [pathname])
+  
   const isAuthPage = pathname === '/login' || pathname === '/logout' || pathname === '/signup'
   const isFullWidth = pathname === '/chat'
 
@@ -65,9 +90,15 @@ export function MainLayout({ children }: MainLayoutProps) {
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      <Header />
-      <div className="flex flex-1 pt-14">
+    <div className="min-h-screen bg-background flex flex-col w-full max-w-full overflow-x-hidden">
+      <div className={cn(hideHeaderMobile && "hidden md:block")}>
+        <Header />
+      </div>
+      
+      <div className={cn(
+        "flex flex-1",
+        hideHeaderMobile ? "pt-0 md:pt-14" : "pt-14"
+      )}>
         {/* Left Sidebar - Desktop only */}
         <Sidebar />
 
@@ -75,15 +106,22 @@ export function MainLayout({ children }: MainLayoutProps) {
         <main className={cn(
           "flex-1 md:ms-64",
           isFullWidth
-            ? "h-[calc(100vh-7.5rem)] md:h-[calc(100vh-3.5rem)] overflow-hidden"
-            : "min-h-screen pb-16 md:pb-0"
+            ? cn(
+                "overflow-hidden",
+                (hideHeaderMobile && hideBottomNavMobile)
+                  ? "h-[100dvh] md:h-[calc(100vh-3.5rem)]"
+                  : "h-[calc(100vh-7.5rem)] md:h-[calc(100vh-3.5rem)]"
+              )
+            : "min-h-screen pb-16 md:pb-0 w-full max-w-full overflow-x-hidden"
         )}>
           {children}
         </main>
       </div>
 
       {/* Mobile Bottom Navigation */}
-      <BottomNav />
+      <div className={cn(hideBottomNavMobile && "hidden")}>
+        <BottomNav />
+      </div>
     </div>
   )
 }

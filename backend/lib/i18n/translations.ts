@@ -107,6 +107,7 @@ export const translations = {
     search_following: 'Following',
     search_follow: 'Follow',
     search_failed_update: 'Failed to update',
+    search_searching: 'Searching...',
     
     // Pages
     pages_title: 'InteraX Pages',
@@ -393,6 +394,7 @@ export const translations = {
     search_following: 'Abonné',
     search_follow: 'Suivre',
     search_failed_update: 'Échec de la mise à jour',
+    search_searching: 'Recherche en cours...',
     
     // Pages
     pages_title: 'Pages InteraX',
@@ -679,6 +681,7 @@ export const translations = {
     search_following: 'متابع',
     search_follow: 'متابعة',
     search_failed_update: 'فشل التحديث',
+    search_searching: 'جاري البحث...',
     
     // Pages
     pages_title: 'صفحات InteraX',

@@ -141,12 +141,12 @@ export default function ProfilePage() {
     } finally {
       setLoadingPosts(false)
     }
-  }, [currentUser])
+  }, [currentUser?.id])
 
   useEffect(() => {
     refreshUser()
     loadPosts()
-  }, [loadPosts, refreshUser])
+  }, [currentUser?.id, refreshUser, loadPosts])
 
   if (!isLoggedIn || !currentUser) {
     return (

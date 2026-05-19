@@ -69,7 +69,7 @@ export default function UserProfilePage(props: { params: Promise<{ id: string }>
     } catch {
       setNotFound(true)
     }
-  }, [params.id, currentUser])
+  }, [params.id, currentUser?.id])
 
   const handleBlock = async () => {
     if (!currentUser) return
@@ -111,7 +111,7 @@ export default function UserProfilePage(props: { params: Promise<{ id: string }>
         setFollowStatus(data.status || (data.isFollowing ? 'accepted' : 'none'))
       }
     } catch {}
-  }, [params.id, currentUser])
+  }, [params.id, currentUser?.id])
 
   useEffect(() => {
     fetchUser()
@@ -183,7 +183,7 @@ export default function UserProfilePage(props: { params: Promise<{ id: string }>
   }
 
   const handleMessage = () => {
-    window.location.href = '/chat'
+    router.push(`/chat?userId=${user.id}`)
   }
 
   if (notFound) {

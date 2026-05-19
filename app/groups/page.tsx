@@ -107,15 +107,15 @@ export default function GroupsPage() {
     <MainLayout>
       <div className="p-4 md:p-6 max-w-6xl mx-auto">
         {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight mb-1">{t('discover_groups')}</h1>
-            <p className="text-muted-foreground">{t('discover_groups_desc')}</p>
+        <div className="flex items-center justify-between gap-4 mb-6">
+          <div className="min-w-0">
+            <h1 className="text-2xl md:text-3xl font-bold tracking-tight mb-1 truncate">{t('discover_groups')}</h1>
+            <p className="text-sm text-muted-foreground hidden sm:block">{t('discover_groups_desc')}</p>
           </div>
           
           <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
             <DialogTrigger asChild>
-              <Button className="rounded-full bg-gradient-to-r from-[#4B0082] to-[#9370DB] text-white shadow-lg hover:shadow-primary/20 transition-all">
+              <Button className="rounded-full bg-gradient-to-r from-[#4B0082] to-[#9370DB] text-white shadow-lg hover:shadow-primary/20 transition-all flex-shrink-0">
                 <Plus className="h-4 w-4 mr-2" />
                 {t('create_btn')}
               </Button>
@@ -186,21 +186,23 @@ export default function GroupsPage() {
         </div>
 
         {/* Categories */}
-        <div className="flex gap-2 overflow-x-auto pb-4 scrollbar-hide mb-8">
-          {categories.map(category => (
-            <button
-              key={category}
-              className={cn(
-                'px-4 py-1.5 rounded-full text-sm font-medium transition-all whitespace-nowrap',
-                selectedCategory === category
-                  ? 'bg-primary text-primary-foreground shadow-sm'
-                  : 'bg-secondary/80 text-muted-foreground hover:bg-secondary'
-              )}
-              onClick={() => setSelectedCategory(category)}
-            >
-              {category}
-            </button>
-          ))}
+        <div className="w-full overflow-x-auto scrollbar-hide mb-6">
+          <div className="flex gap-2 pb-1">
+            {categories.map(category => (
+              <button
+                key={category}
+                className={cn(
+                  'px-4 py-1.5 rounded-full text-sm font-medium transition-all whitespace-nowrap',
+                  selectedCategory === category
+                    ? 'bg-primary text-primary-foreground shadow-sm'
+                    : 'bg-secondary/80 text-muted-foreground hover:bg-secondary'
+                )}
+                onClick={() => setSelectedCategory(category)}
+              >
+                {category}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Groups Grid */}
@@ -218,7 +220,7 @@ export default function GroupsPage() {
                 {currentUser?.id === group.owner_id && (
                   <button
                     onClick={() => handleDeleteGroup(group.id)}
-                    className="absolute top-3 right-3 z-10 h-8 w-8 rounded-full bg-destructive/90 text-white flex items-center justify-center opacity-0 group-hover/card:opacity-100 transition-opacity shadow-md hover:bg-destructive"
+                    className="absolute top-3 right-3 z-10 h-8 w-8 rounded-full bg-destructive/90 text-white flex items-center justify-center opacity-100 md:opacity-0 md:group-hover/card:opacity-100 transition-opacity shadow-md hover:bg-destructive"
                     title="Delete group"
                   >
                     <Trash2 className="h-3.5 w-3.5" />

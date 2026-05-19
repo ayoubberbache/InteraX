@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, Suspense } from 'react'
+import { useSearchParams } from 'next/navigation'
 import Image from 'next/image'
 import Link from 'next/link'
 import { Search, Heart, MessageCircle, UserPlus, UserCheck } from 'lucide-react'
@@ -14,10 +15,14 @@ import { useAuth } from '@/backend/lib/auth-context'
 import { toast } from 'sonner'
 import { useLanguage } from '@/backend/lib/i18n/context'
 
-export default function SearchPage() {
+function SearchPageContent() {
   const { currentUser } = useAuth()
   const { t } = useLanguage()
-  const [query, setQuery] = useState('')
+  
+  const searchParams = useSearchParams()
+  const qParam = searchParams.get('q') || ''
+  
+  const [query, setQuery] = useState(qParam)
   const [filteredUsers, setFilteredUsers] = useState<any[]>([])
   const [filteredPosts, setFilteredPosts] = useState<any[]>([])
   const [filteredGroups, setFilteredGroups] = useState<any[]>([])
@@ -25,8 +30,15 @@ export default function SearchPage() {
   const [explorePosts, setExplorePosts] = useState<any[]>([])
   const [followingMap, setFollowingMap] = useState<Record<string, boolean>>({})
   const [loadingFollow, setLoadingFollow] = useState<string | null>(null)
+  const [isSearching, setIsSearching] = useState(false)
 
   const searchTimeout = useRef<NodeJS.Timeout | null>(null)
+  const latestQuery = useRef('')
+
+  // Sync state if query parameter changes
+  useEffect(() => {
+    setQuery(qParam)
+  }, [qParam])
 
   useEffect(() => {
     // Initial explore data
@@ -40,9 +52,11 @@ export default function SearchPage() {
       .then(r => r.json())
       .then(d => setExplorePosts(Array.isArray(d) ? d : []))
       .catch(console.error)
-  }, [currentUser])
+  }, [currentUser?.id])
 
   const doSearch = useCallback(async (q: string) => {
+    latestQuery.current = q
+    setIsSearching(true)
     try {
       const [uRes, pRes, gRes] = await Promise.all([
         fetch(`/api/users?q=${encodeURIComponent(q)}&viewerId=${currentUser?.id || ''}`),
@@ -50,43 +64,59 @@ export default function SearchPage() {
         fetch(`/api/groups`),
       ])
 
+      // If the query has changed, ignore the results
+      if (latestQuery.current !== q) return
+
       if (uRes.ok) {
         const { data } = await uRes.json()
-        setFilteredUsers(data || [])
+        if (latestQuery.current === q) {
+          setFilteredUsers(data || [])
+        }
       }
       if (pRes.ok) {
         const posts = await pRes.json()
         const lower = q.toLowerCase()
-        setFilteredPosts(
-          (posts || []).filter((p: any) =>
-            p.caption?.toLowerCase().includes(lower) ||
-            p.user?.name?.toLowerCase().includes(lower) ||
-            p.user?.username?.toLowerCase().includes(lower)
+        if (latestQuery.current === q) {
+          setFilteredPosts(
+            (posts || []).filter((p: any) =>
+              p.caption?.toLowerCase().includes(lower) ||
+              p.user?.name?.toLowerCase().includes(lower) ||
+              p.user?.username?.toLowerCase().includes(lower)
+            )
           )
-        )
+        }
       }
       if (gRes.ok) {
         const groups = await gRes.json()
         const lower = q.toLowerCase()
-        setFilteredGroups(
-          (groups || []).filter((g: any) =>
-            g.name?.toLowerCase().includes(lower) ||
-            g.description?.toLowerCase().includes(lower)
+        if (latestQuery.current === q) {
+          setFilteredGroups(
+            (groups || []).filter((g: any) =>
+              g.name?.toLowerCase().includes(lower) ||
+              g.description?.toLowerCase().includes(lower)
+            )
           )
-        )
+        }
       }
     } catch (err) {
       console.error(err)
+    } finally {
+      if (latestQuery.current === q) {
+        setIsSearching(false)
+      }
     }
-  }, [])
+  }, [currentUser?.id])
 
   useEffect(() => {
     if (!query.trim()) {
+      latestQuery.current = ''
       setFilteredUsers([])
       setFilteredPosts([])
       setFilteredGroups([])
+      setIsSearching(false)
       return
     }
+    setIsSearching(true)
     if (searchTimeout.current) clearTimeout(searchTimeout.current)
     searchTimeout.current = setTimeout(() => doSearch(query.trim()), 350)
   }, [query, doSearch])
@@ -177,6 +207,13 @@ export default function SearchPage() {
     </div>
   )
 
+  const SearchLoader = () => (
+    <div className="flex flex-col items-center justify-center py-16 gap-3">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+      <p className="text-sm text-muted-foreground animate-pulse">{t('search_searching') || 'Searching...'}</p>
+    </div>
+  )
+
   return (
     <MainLayout>
       <div className="p-4 md:p-6 max-w-4xl mx-auto">
@@ -204,40 +241,48 @@ export default function SearchPage() {
 
             {/* All tab */}
             <TabsContent value="all" className="space-y-6">
-              {filteredUsers.length > 0 && (
-                <div>
-                  <h3 className="font-semibold mb-3 text-sm uppercase tracking-wider text-muted-foreground">{t('search_tab_users')}</h3>
-                  <div className="space-y-1">
-                    {filteredUsers.slice(0, 3).map(user => <UserRow key={user.id} user={user} />)}
-                  </div>
-                </div>
-              )}
-              {filteredPosts.length > 0 && (
-                <div>
-                  <h3 className="font-semibold mb-3 text-sm uppercase tracking-wider text-muted-foreground">{t('search_tab_posts')}</h3>
-                  <div className="grid grid-cols-3 gap-1">
-                    {filteredPosts.slice(0, 6).map(post => <PostCard key={post.id} post={post} />)}
-                  </div>
-                </div>
-              )}
-              {filteredGroups.length > 0 && (
-                <div>
-                  <h3 className="font-semibold mb-3 text-sm uppercase tracking-wider text-muted-foreground">{t('search_tab_groups')}</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {filteredGroups.slice(0, 2).map(group => <GroupCard key={group.id} group={group} />)}
-                  </div>
-                </div>
-              )}
-              {filteredUsers.length === 0 && filteredPosts.length === 0 && filteredGroups.length === 0 && (
-                <div className="text-center py-12 text-muted-foreground">
-                  {t('search_no_results')} &quot;{query}&quot;
-                </div>
+              {isSearching ? (
+                <SearchLoader />
+              ) : (
+                <>
+                  {filteredUsers.length > 0 && (
+                    <div>
+                      <h3 className="font-semibold mb-3 text-sm uppercase tracking-wider text-muted-foreground">{t('search_tab_users')}</h3>
+                      <div className="space-y-1">
+                        {filteredUsers.slice(0, 3).map(user => <UserRow key={user.id} user={user} />)}
+                      </div>
+                    </div>
+                  )}
+                  {filteredPosts.length > 0 && (
+                    <div>
+                      <h3 className="font-semibold mb-3 text-sm uppercase tracking-wider text-muted-foreground">{t('search_tab_posts')}</h3>
+                      <div className="grid grid-cols-3 gap-1">
+                        {filteredPosts.slice(0, 6).map(post => <PostCard key={post.id} post={post} />)}
+                      </div>
+                    </div>
+                  )}
+                  {filteredGroups.length > 0 && (
+                    <div>
+                      <h3 className="font-semibold mb-3 text-sm uppercase tracking-wider text-muted-foreground">{t('search_tab_groups')}</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {filteredGroups.slice(0, 2).map(group => <GroupCard key={group.id} group={group} />)}
+                      </div>
+                    </div>
+                  )}
+                  {filteredUsers.length === 0 && filteredPosts.length === 0 && filteredGroups.length === 0 && (
+                    <div className="text-center py-12 text-muted-foreground">
+                      {t('search_no_results')} &quot;{query}&quot;
+                    </div>
+                  )}
+                </>
               )}
             </TabsContent>
 
             {/* Users tab */}
             <TabsContent value="users">
-              {filteredUsers.length > 0 ? (
+              {isSearching ? (
+                <SearchLoader />
+              ) : filteredUsers.length > 0 ? (
                 <div className="space-y-1">
                   {filteredUsers.map(user => <UserRow key={user.id} user={user} />)}
                 </div>
@@ -248,7 +293,9 @@ export default function SearchPage() {
 
             {/* Posts tab */}
             <TabsContent value="posts">
-              {filteredPosts.length > 0 ? (
+              {isSearching ? (
+                <SearchLoader />
+              ) : filteredPosts.length > 0 ? (
                 <div className="grid grid-cols-3 gap-1">
                   {filteredPosts.map(post => <PostCard key={post.id} post={post} />)}
                 </div>
@@ -259,7 +306,9 @@ export default function SearchPage() {
 
             {/* Groups tab */}
             <TabsContent value="groups">
-              {filteredGroups.length > 0 ? (
+              {isSearching ? (
+                <SearchLoader />
+              ) : filteredGroups.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {filteredGroups.map(group => <GroupCard key={group.id} group={group} />)}
                 </div>
@@ -308,5 +357,19 @@ export default function SearchPage() {
         )}
       </div>
     </MainLayout>
+  )
+}
+
+export default function SearchPage() {
+  return (
+    <Suspense fallback={
+      <MainLayout>
+        <div className="flex items-center justify-center min-h-[50vh]">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        </div>
+      </MainLayout>
+    }>
+      <SearchPageContent />
+    </Suspense>
   )
 }
