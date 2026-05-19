@@ -32,7 +32,21 @@ export async function GET() {
     await execute(`CREATE INDEX IF NOT EXISTS idx_uploads_context_type ON uploads(context_type)`)
     await execute(`CREATE INDEX IF NOT EXISTS idx_uploads_context_id ON uploads(context_id)`)
 
-    return NextResponse.json({ success: true, message: 'saved_posts and uploads tables created successfully' })
+    await execute(`
+      CREATE TABLE IF NOT EXISTS reports (
+        id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        reporter_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        entity_type TEXT NOT NULL,
+        entity_id   UUID NOT NULL,
+        reason      TEXT NOT NULL,
+        details     TEXT,
+        status      TEXT DEFAULT 'pending',
+        created_at  TIMESTAMPTZ DEFAULT now()
+      )
+    `)
+    await execute(`CREATE INDEX IF NOT EXISTS idx_reports_entity_id ON reports(entity_id)`)
+
+    return NextResponse.json({ success: true, message: 'saved_posts, uploads, and reports tables created successfully' })
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }

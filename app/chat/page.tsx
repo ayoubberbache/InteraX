@@ -899,93 +899,115 @@ Tell users you can help them navigate the platform.`
                         
                         return (
                           <div key={m.id} className={cn('flex message-bubble', isOwn ? 'justify-end' : 'justify-start')}>
-                            <div className={cn(
-                              'group relative max-w-[75%] transition-all',
-                              isEmojiOnly 
-                                ? 'text-[80px] leading-none drop-shadow-xl animate-in zoom-in spin-in-2' 
-                                : cn('px-4 py-2 text-sm shadow-sm', isOwn 
-                                  ? 'bg-gradient-to-r from-[#4B0082] to-[#6366f1] text-white rounded-2xl rounded-tr-none' 
-                                  : 'bg-background border border-border rounded-2xl rounded-tl-none text-foreground'
-                                )
-                            )}>
-                              {isOwn && (
-                                <div className="absolute top-1/2 -translate-y-1/2 -left-16 opacity-0 group-hover:opacity-100 flex items-center gap-1 bg-background border border-border shadow-md rounded-md p-1 transition-opacity z-10 text-foreground">
-                                  <button onClick={() => setEditingMsg(m.id)} className="px-1.5 py-0.5 hover:bg-secondary rounded text-xs font-semibold">{t('chat_edit_msg')}</button>
-                                  <button onClick={() => handleDeleteMsg(m.id)} className="px-1.5 py-0.5 hover:bg-secondary rounded text-xs font-semibold text-destructive">{t('chat_delete_msg')}</button>
-                                </div>
-                              )}
-                              
-                              {editingMsg === m.id ? (
-                                <input
-                                  type="text"
-                                  defaultValue={m.content || ''}
-                                  onKeyDown={(e) => {
-                                    if (e.key === 'Enter') handleEditMsg(m.id, e.currentTarget.value)
-                                    if (e.key === 'Escape') setEditingMsg(null)
-                                  }}
-                                  onBlur={() => setEditingMsg(null)}
-                                  autoFocus
-                                  className="w-full bg-transparent border-b border-white/50 outline-none"
-                                />
-                              ) : (
-                                <div className="space-y-2">
-                                  {m.type === 'image' && m.media_url && (
-                                    <div className="relative aspect-auto max-w-sm overflow-hidden rounded-lg border border-border/50 shadow-inner bg-secondary/10">
-                                      <img src={m.media_url} alt="Shared photo" className="max-h-80 w-full object-contain" />
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <div className={cn(
+                                  'group relative max-w-[75%] transition-all cursor-pointer select-none active:scale-[0.99] outline-none',
+                                  isEmojiOnly 
+                                    ? 'text-[80px] leading-none drop-shadow-xl animate-in zoom-in spin-in-2' 
+                                    : cn('px-4 py-2 text-sm shadow-sm', isOwn 
+                                      ? 'bg-gradient-to-r from-[#4B0082] to-[#6366f1] text-white rounded-2xl rounded-tr-none' 
+                                      : 'bg-background border border-border rounded-2xl rounded-tl-none text-foreground'
+                                    )
+                                )}>
+                                  {editingMsg === m.id ? (
+                                    <input
+                                      type="text"
+                                      defaultValue={m.content || ''}
+                                      onKeyDown={(e) => {
+                                        if (e.key === 'Enter') handleEditMsg(m.id, e.currentTarget.value)
+                                        if (e.key === 'Escape') setEditingMsg(null)
+                                      }}
+                                      onBlur={() => setEditingMsg(null)}
+                                      autoFocus
+                                      className="w-full bg-transparent border-b border-white/50 outline-none text-foreground"
+                                      onClick={(e) => e.stopPropagation()}
+                                    />
+                                  ) : (
+                                    <div className="space-y-2">
+                                      {m.type === 'image' && m.media_url && (
+                                        <div className="relative aspect-auto max-w-sm overflow-hidden rounded-lg border border-border/50 shadow-inner bg-secondary/10">
+                                          <img src={m.media_url} alt="Shared photo" className="max-h-80 w-full object-contain" />
+                                        </div>
+                                      )}
+                                      {m.type === 'audio' && m.media_url && (
+                                        <div className="flex items-center gap-2 py-1" onClick={(e) => e.stopPropagation()}>
+                                          <audio src={m.media_url} controls controlsList="nodownload noplaybackrate" className="h-8 w-48 custom-audio" />
+                                        </div>
+                                      )}
+                                      {m.content && (
+                                        <p className={cn("leading-relaxed whitespace-pre-wrap", isEmojiOnly && "text-center")}>
+                                          {m.content}
+                                        </p>
+                                      )}
                                     </div>
                                   )}
-                                  {m.type === 'audio' && m.media_url && (
-                                    <div className="flex items-center gap-2 py-1">
-                                      <audio src={m.media_url} controls controlsList="nodownload noplaybackrate" className="h-8 w-48 custom-audio" />
-                                    </div>
-                                  )}
-                                  {m.content && (
-                                    <p className={cn("leading-relaxed whitespace-pre-wrap", isEmojiOnly && "text-center")}>
-                                      {m.content}
-                                    </p>
-                                  )}
-                                </div>
-                              )}
 
-                              {/* Persistent Multi-React Logic */}
-                              {m.message_reactions && m.message_reactions.length > 0 && (
-                                <div className="flex flex-wrap gap-1 mt-1 -mb-1">
-                                  {[...new Set(m.message_reactions.map(r => r.emoji))].map((emoji, idx) => (
-                                    <div key={idx} className="bg-background/80 backdrop-blur-sm border border-border rounded-full px-1.5 py-0.5 text-xs shadow-sm animate-in zoom-in-50 duration-200">
-                                      {emoji} {m.message_reactions!.filter(r => r.emoji === emoji).length > 1 && m.message_reactions!.filter(r => r.emoji === emoji).length}
+                                  {/* Message Reactions */}
+                                  {m.message_reactions && m.message_reactions.length > 0 && (
+                                    <div className="flex flex-wrap gap-1 mt-1 -mb-1">
+                                      {[...new Set(m.message_reactions.map(r => r.emoji))].map((emoji, idx) => (
+                                        <div key={idx} className="bg-background/85 backdrop-blur-sm border border-border rounded-full px-2 py-0.5 text-xs shadow-sm animate-in zoom-in-50 duration-200 text-foreground flex items-center gap-1 font-medium">
+                                          <span>{emoji}</span>
+                                          {m.message_reactions!.filter(r => r.emoji === emoji).length > 1 && (
+                                            <span className="text-[10px] text-muted-foreground">{m.message_reactions!.filter(r => r.emoji === emoji).length}</span>
+                                          )}
+                                        </div>
+                                      ))}
                                     </div>
+                                  )}
+
+                                  <p className={cn("text-[10px] mt-1 flex items-center gap-1", isOwn ? "justify-end" : "justify-start", isEmojiOnly ? "text-muted-foreground opacity-100 font-medium drop-shadow-md bg-background/50 px-2 py-0.5 rounded-full inline-flex absolute -bottom-6 right-0" : (isOwn ? "text-white/80 opacity-60" : "text-muted-foreground opacity-60"))}>
+                                    <span>{formatTimeAgo(m.created_at)}</span>
+                                    {m.updated_at && new Date(m.updated_at).getTime() - new Date(m.created_at).getTime() > 1000 && (
+                                      <span>{t('chat_edited')}</span>
+                                    )}
+                                  </p>
+                                </div>
+                              </DropdownMenuTrigger>
+                              
+                              <DropdownMenuContent align={isOwn ? "end" : "start"} className="w-64 p-2 bg-popover/95 backdrop-blur-md border border-border rounded-2xl shadow-xl z-50">
+                                {/* Emoji Quick Reactions row */}
+                                <div className="flex justify-around items-center gap-1 pb-2 mb-2 border-b border-border/50">
+                                  {['👏', '👍', '❤️', '🤗', '👎', '😂'].map(emoji => (
+                                    <button 
+                                      key={emoji} 
+                                      onClick={(e) => {
+                                        e.preventDefault()
+                                        e.stopPropagation()
+                                        handleReact(m, emoji)
+                                      }} 
+                                      className="h-8 w-8 hover:bg-secondary rounded-full flex items-center justify-center text-lg hover:scale-125 transition-transform"
+                                    >
+                                      {emoji}
+                                    </button>
                                   ))}
                                 </div>
-                              )}
-
-                              {!isOwn && (
-                                <Popover>
-                                  <PopoverTrigger asChild>
-                                    <button className={cn("absolute top-1/2 -translate-y-1/2 -right-8 opacity-0 group-hover:opacity-100 flex items-center justify-center h-6 w-6 bg-background border border-border shadow-md rounded-full transition-all text-muted-foreground hover:text-primary", isEmojiOnly && "-right-12")}>
-                                      ☺
-                                    </button>
-                                  </PopoverTrigger>
-                                  <PopoverContent side="top" align="center" className="w-auto p-1.5 flex gap-1 rounded-full shadow-lg border-border/50 animate-in fade-in slide-in-from-bottom-2">
-                                    {['👏', '👍', '❤️', '🤗', '👎', '😂'].map(emoji => (
-                                      <button 
-                                        key={emoji} 
-                                        onClick={() => handleReact(m, emoji)} 
-                                        className="h-8 w-8 hover:bg-secondary rounded-full flex items-center justify-center text-lg hover:scale-125 transition-transform"
-                                      >
-                                        {emoji}
-                                      </button>
-                                    ))}
-                                  </PopoverContent>
-                                </Popover>
-                              )}
-
-                              <p className={cn("text-[10px] mt-1 flex items-center gap-1", isOwn ? "justify-end" : "justify-start", isEmojiOnly ? "text-muted-foreground opacity-100 font-medium drop-shadow-md bg-background/50 px-2 py-0.5 rounded-full inline-flex absolute -bottom-6 right-0" : (isOwn ? "text-white/80 opacity-60" : "text-muted-foreground opacity-60"))}>
-                                <span>{formatTimeAgo(m.created_at)}</span>
-                                {m.updated_at && new Date(m.updated_at).getTime() - new Date(m.created_at).getTime() > 1000 && (
-                                  <span>{t('chat_edited')}</span>
+                                {isOwn ? (
+                                  <>
+                                    <DropdownMenuItem 
+                                      onClick={() => setEditingMsg(m.id)}
+                                      className="flex items-center gap-2 p-2 hover:bg-secondary rounded-lg cursor-pointer text-sm font-semibold text-foreground"
+                                    >
+                                      {t('chat_edit_msg')}
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem 
+                                      onClick={() => handleDeleteMsg(m.id)}
+                                      className="flex items-center gap-2 p-2 text-destructive hover:bg-destructive/10 rounded-lg cursor-pointer text-sm font-semibold"
+                                    >
+                                      {t('chat_delete_msg')}
+                                    </DropdownMenuItem>
+                                  </>
+                                ) : (
+                                  <DropdownMenuItem 
+                                    onClick={() => handleReact(m, '❤️')}
+                                    className="flex items-center gap-2 p-2 hover:bg-secondary rounded-lg cursor-pointer text-sm font-semibold text-foreground"
+                                  >
+                                    Like Message
+                                  </DropdownMenuItem>
                                 )}
-                              </p>
-                            </div>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </div>
                         )
                       })

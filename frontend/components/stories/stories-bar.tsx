@@ -21,7 +21,7 @@ export function StoriesBar() {
 
   const loadStories = async () => {
     try {
-      const res = await fetch('/api/stories')
+      const res = await fetch(`/api/stories${currentUser?.id ? `?viewerId=${currentUser.id}` : ''}`)
       if (res.ok) {
         const data = await res.json()
         // Sort to group by user, then by time

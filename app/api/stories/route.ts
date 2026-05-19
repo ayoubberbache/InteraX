@@ -1,16 +1,35 @@
 import { NextResponse, NextRequest } from 'next/server'
 import { query, queryOne, execute } from '@/backend/lib/db'
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
-    const stories = await query(`
-      SELECT s.*, 
-             u.full_name as user_name, u.username as user_username, u.avatar_url as user_avatar, u.is_verified as user_verified
-      FROM stories s
-      LEFT JOIN users u ON s.user_id = u.id
-      WHERE s.expires_at > NOW()
-      ORDER BY s.created_at DESC
-    `)
+    const { searchParams } = new URL(req.url)
+    const viewerId = searchParams.get('viewerId')
+
+    let stories;
+    if (viewerId) {
+      stories = await query(`
+        SELECT s.*, 
+               u.full_name as user_name, u.username as user_username, u.avatar_url as user_avatar, u.is_verified as user_verified
+        FROM stories s
+        LEFT JOIN users u ON s.user_id = u.id
+        WHERE s.expires_at > NOW()
+          AND (u.is_private = false OR s.user_id = $1 OR EXISTS (
+            SELECT 1 FROM follows WHERE follower_id = $1 AND following_id = s.user_id AND status = 'accepted'
+          ))
+        ORDER BY s.created_at DESC
+      `, [viewerId])
+    } else {
+      stories = await query(`
+        SELECT s.*, 
+               u.full_name as user_name, u.username as user_username, u.avatar_url as user_avatar, u.is_verified as user_verified
+        FROM stories s
+        LEFT JOIN users u ON s.user_id = u.id
+        WHERE s.expires_at > NOW()
+          AND u.is_private = false
+        ORDER BY s.created_at DESC
+      `)
+    }
 
     const formattedStories = stories.map((story: any) => ({
       id: story.id,

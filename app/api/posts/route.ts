@@ -23,6 +23,18 @@ export async function GET(req: NextRequest) {
 
     // Build WHERE
     const conditions: string[] = []
+    
+    // Privacy filter
+    if (userId) {
+      const viewerParamIndex = paramCount++
+      params.push(userId)
+      conditions.push(`(u.is_private = false OR p.user_id = $${viewerParamIndex} OR EXISTS (
+        SELECT 1 FROM follows WHERE follower_id = $${viewerParamIndex} AND following_id = p.user_id AND status = 'accepted'
+      ))`)
+    } else {
+      conditions.push(`u.is_private = false`)
+    }
+
     if (savedOnly && userId) {
       conditions.push(`sp.user_id = $${paramCount++}`)
       params.push(userId)

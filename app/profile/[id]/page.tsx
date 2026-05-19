@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, use } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { ArrowLeft, Grid3X3, Users, MessageCircle, UserCheck, UserPlus } from 'lucide-react'
+import { ArrowLeft, Grid3X3, Users, MessageCircle, UserCheck, UserPlus, Lock } from 'lucide-react'
 import { MainLayout } from '@/frontend/components/layout/main-layout'
 import { useAuth } from '@/backend/lib/auth-context'
 import { formatNumber } from '@/backend/lib/utils'
@@ -21,6 +21,7 @@ export default function UserProfilePage(props: { params: Promise<{ id: string }>
   const [user, setUser] = useState<any>(null)
   const [userPosts, setUserPosts] = useState<any[]>([])
   const [isFollowing, setIsFollowing] = useState(false)
+  const [followStatus, setFollowStatus] = useState<'none' | 'pending' | 'accepted'>('none')
   const [followLoading, setFollowLoading] = useState(false)
   const [userRating, setUserRating] = useState(0)
   const [showRating, setShowRating] = useState(false)
@@ -42,7 +43,6 @@ export default function UserProfilePage(props: { params: Promise<{ id: string }>
       const res = await fetch(`/api/posts?userId=${params.id}`)
       if (res.ok) {
         const data = await res.json()
-        // Filter to only this user's posts
         setUserPosts(Array.isArray(data) ? data.filter((p: any) => p.userId === params.id) : [])
       }
     } catch {}
@@ -55,6 +55,7 @@ export default function UserProfilePage(props: { params: Promise<{ id: string }>
       if (res.ok) {
         const data = await res.json()
         setIsFollowing(data.isFollowing)
+        setFollowStatus(data.status || (data.isFollowing ? 'accepted' : 'none'))
       }
     } catch {}
   }, [params.id, currentUser])
@@ -68,13 +69,29 @@ export default function UserProfilePage(props: { params: Promise<{ id: string }>
   const handleFollow = async () => {
     if (!currentUser || followLoading) return
     setFollowLoading(true)
-    // Optimistic update
-    const wasFollowing = isFollowing
-    setIsFollowing(!wasFollowing)
-    setUser((prev: any) => prev ? {
-      ...prev,
-      followers_count: prev.followers_count + (wasFollowing ? -1 : 1)
-    } : prev)
+
+    const prevStatus = followStatus
+    const isUnfollowing = prevStatus === 'accepted' || prevStatus === 'pending'
+    
+    let nextStatus: 'none' | 'pending' | 'accepted' = 'none'
+    if (!isUnfollowing) {
+      nextStatus = user.is_private ? 'pending' : 'accepted'
+    }
+
+    setFollowStatus(nextStatus)
+    setIsFollowing(nextStatus === 'accepted')
+
+    if (isUnfollowing && prevStatus === 'accepted') {
+      setUser((prev: any) => prev ? {
+        ...prev,
+        followers_count: Math.max((prev.followers_count || 0) - 1, 0)
+      } : prev)
+    } else if (nextStatus === 'accepted') {
+      setUser((prev: any) => prev ? {
+        ...prev,
+        followers_count: (prev.followers_count || 0) + 1
+      } : prev)
+    }
 
     try {
       const res = await fetch(`/api/users/${params.id}/follow`, {
@@ -83,20 +100,28 @@ export default function UserProfilePage(props: { params: Promise<{ id: string }>
         body: JSON.stringify({ viewerId: currentUser.id }),
       })
       if (!res.ok) {
-        // Rollback
-        setIsFollowing(wasFollowing)
-        setUser((prev: any) => prev ? {
-          ...prev,
-          followers_count: prev.followers_count + (wasFollowing ? 1 : -1)
-        } : prev)
+        setFollowStatus(prevStatus)
+        setIsFollowing(prevStatus === 'accepted')
+        fetchUser()
         toast.error('Failed to update follow status')
       } else {
         const data = await res.json()
+        setFollowStatus(data.status)
         setIsFollowing(data.isFollowing)
-        toast.success(data.isFollowing ? `Following ${user?.full_name}` : `Unfollowed ${user?.full_name}`)
+        
+        if (data.status === 'pending') {
+          toast.success(`Follow request sent to ${user?.full_name}`)
+        } else if (data.status === 'accepted') {
+          toast.success(`Following ${user?.full_name}`)
+        } else {
+          toast.success(`Unfollowed ${user?.full_name}`)
+        }
+        
+        fetchUser()
       }
     } catch {
-      setIsFollowing(wasFollowing)
+      setFollowStatus(prevStatus)
+      setIsFollowing(prevStatus === 'accepted')
       toast.error('Network error')
     } finally {
       setFollowLoading(false)
@@ -140,8 +165,10 @@ export default function UserProfilePage(props: { params: Promise<{ id: string }>
         {/* Profile Header */}
         <div className="flex flex-col md:flex-row items-start gap-6 mb-8">
           <Avatar className="h-24 w-24 md:h-36 md:w-36 ring-4 ring-primary/10">
-            <AvatarImage src={user.avatar_url || undefined} alt={user.full_name} />
-            <AvatarFallback className="text-2xl">{user.full_name?.[0]}</AvatarFallback>
+            <AvatarImage src={user.avatar_url || undefined} alt={user.full_name} className="object-cover" />
+            <AvatarFallback className="text-2xl bg-gradient-to-br from-[#4B0082] to-[#E6E6FA] text-white">
+              {user.full_name?.[0]}
+            </AvatarFallback>
           </Avatar>
 
           <div className="flex-1">
@@ -153,19 +180,21 @@ export default function UserProfilePage(props: { params: Promise<{ id: string }>
               {!isOwnProfile && (
                 <div className="flex gap-2">
                   <Button
-                    variant={isFollowing ? 'outline' : 'default'}
+                    variant={followStatus === 'accepted' ? 'outline' : followStatus === 'pending' ? 'secondary' : 'default'}
                     size="sm"
                     onClick={handleFollow}
                     disabled={followLoading}
-                    className="gap-1.5"
+                    className="gap-1.5 rounded-full"
                   >
-                    {isFollowing ? (
+                    {followStatus === 'accepted' ? (
                       <><UserCheck className="h-4 w-4" />Following</>
+                    ) : followStatus === 'pending' ? (
+                      <><UserCheck className="h-4 w-4 animate-pulse" />Requested</>
                     ) : (
                       <><UserPlus className="h-4 w-4" />Follow</>
                     )}
                   </Button>
-                  <Button variant="outline" size="sm" onClick={handleMessage} className="gap-1.5">
+                  <Button variant="outline" size="sm" onClick={handleMessage} className="gap-1.5 rounded-full">
                     <MessageCircle className="h-4 w-4" />Message
                   </Button>
                 </div>
@@ -194,7 +223,7 @@ export default function UserProfilePage(props: { params: Promise<{ id: string }>
                 <button
                   onClick={() => !isOwnProfile && setShowRating(!showRating)}
                   className="flex items-center gap-1"
-                  disabled={isOwnProfile}
+                  disabled={isOwnProfile || (user.is_private && !isOwnProfile && followStatus !== 'accepted')}
                 >
                   <RatingDisplay rating={user.rating || 0} count={user.rating_count} size="md" />
                 </button>
@@ -213,43 +242,65 @@ export default function UserProfilePage(props: { params: Promise<{ id: string }>
           </div>
         </div>
 
-        {/* Posts Grid */}
-        <Tabs defaultValue="posts">
-          <TabsList className="w-full justify-center border-t border-border rounded-none bg-transparent">
-            <TabsTrigger value="posts" className="flex items-center gap-2 data-[state=active]:border-t-2 data-[state=active]:border-foreground rounded-none">
-              <Grid3X3 className="h-4 w-4" />
-              <span className="hidden sm:inline">Posts</span>
-            </TabsTrigger>
-            <TabsTrigger value="groups" className="flex items-center gap-2 data-[state=active]:border-t-2 data-[state=active]:border-foreground rounded-none">
-              <Users className="h-4 w-4" />
-              <span className="hidden sm:inline">Groups</span>
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="posts" className="mt-6">
-            {userPosts.length > 0 ? (
-              <div className="grid grid-cols-3 gap-1">
-                {userPosts.map(post => (
-                  <div key={post.id} className="relative aspect-square bg-secondary/20 group overflow-hidden rounded-sm">
-                    {post.image ? (
-                      <Image src={post.image} alt={post.caption || 'Post'} fill className="object-cover group-hover:scale-105 transition-transform duration-300" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center p-2">
-                        <p className="text-xs text-muted-foreground text-center line-clamp-3">{post.caption}</p>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
+        {/* Private Account Block */}
+        {user.is_private && !isOwnProfile && followStatus !== 'accepted' ? (
+          <div className="flex flex-col items-center justify-center py-20 px-4 text-center bg-secondary/10 border border-border backdrop-blur-md rounded-3xl mt-6 shadow-xl max-w-xl mx-auto">
+            <div className="h-20 w-20 rounded-full bg-gradient-to-tr from-violet-600/20 to-indigo-600/20 border border-violet-500/20 flex items-center justify-center mb-6">
+              <Lock className="h-10 w-10 text-indigo-500" />
+            </div>
+            <h3 className="text-xl font-bold mb-2">This Account is Private</h3>
+            <p className="text-muted-foreground text-sm max-w-sm mb-6">
+              Follow this user to see their photos, videos, and stories.
+            </p>
+            {followStatus === 'pending' ? (
+              <Button disabled variant="outline" className="rounded-full px-6">
+                Request Pending
+              </Button>
             ) : (
-              <div className="text-center py-12 text-muted-foreground">No posts yet</div>
+              <Button onClick={handleFollow} className="rounded-full bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white font-semibold px-6 shadow-md transition-all">
+                Follow
+              </Button>
             )}
-          </TabsContent>
+          </div>
+        ) : (
+          /* Posts Grid */
+          <Tabs defaultValue="posts">
+            <TabsList className="w-full justify-center border-t border-border rounded-none bg-transparent">
+              <TabsTrigger value="posts" className="flex items-center gap-2 data-[state=active]:border-t-2 data-[state=active]:border-foreground rounded-none">
+                <Grid3X3 className="h-4 w-4" />
+                <span className="hidden sm:inline">Posts</span>
+              </TabsTrigger>
+              <TabsTrigger value="groups" className="flex items-center gap-2 data-[state=active]:border-t-2 data-[state=active]:border-foreground rounded-none">
+                <Users className="h-4 w-4" />
+                <span className="hidden sm:inline">Groups</span>
+              </TabsTrigger>
+            </TabsList>
 
-          <TabsContent value="groups" className="mt-6">
-            <div className="text-center py-12 text-muted-foreground">No groups joined yet</div>
-          </TabsContent>
-        </Tabs>
+            <TabsContent value="posts" className="mt-6">
+              {userPosts.length > 0 ? (
+                <div className="grid grid-cols-3 gap-1">
+                  {userPosts.map(post => (
+                    <div key={post.id} className="relative aspect-square bg-secondary/20 group overflow-hidden rounded-sm">
+                      {post.image ? (
+                        <Image src={post.image} alt={post.caption || 'Post'} fill className="object-cover group-hover:scale-105 transition-transform duration-300 animate-fade-in" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center p-2">
+                          <p className="text-xs text-muted-foreground text-center line-clamp-3">{post.caption}</p>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12 text-muted-foreground">No posts yet</div>
+              )}
+            </TabsContent>
+
+            <TabsContent value="groups" className="mt-6">
+              <div className="text-center py-12 text-muted-foreground">No groups joined yet</div>
+            </TabsContent>
+          </Tabs>
+        )}
       </div>
     </MainLayout>
   )

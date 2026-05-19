@@ -47,7 +47,7 @@ export async function GET(req: NextRequest) {
 export async function PATCH(req: NextRequest) {
   try {
     const body = await req.json()
-    const { id, full_name, bio, avatar_url, cover_url, ai_persona, username } = body
+    const { id, full_name, bio, avatar_url, cover_url, ai_persona, username, is_private } = body
 
     if (!id) return Response.json({ error: 'id is required' }, { status: 400 })
 
@@ -68,6 +68,7 @@ export async function PATCH(req: NextRequest) {
     if (avatar_url !== undefined) { updates.push(`avatar_url = $${paramIndex++}`); values.push(avatar_url) }
     if (cover_url !== undefined) { updates.push(`cover_url = $${paramIndex++}`); values.push(cover_url) }
     if (ai_persona !== undefined) { updates.push(`ai_persona = $${paramIndex++}`); values.push(ai_persona) }
+    if (is_private !== undefined) { updates.push(`is_private = $${paramIndex++}`); values.push(is_private) }
 
     updates.push(`updated_at = NOW()`)
     values.push(id)

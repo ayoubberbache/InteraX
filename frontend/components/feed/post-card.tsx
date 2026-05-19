@@ -4,7 +4,7 @@ import EmojiPicker from "emoji-picker-react"
 import { useState, useRef, useEffect } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { Heart, MessageCircle, Share2, Bookmark, MoreHorizontal, Send, X, Check, Copy, Link2, Trash2 } from 'lucide-react'
+import { Heart, MessageCircle, Share2, Bookmark, MoreHorizontal, Send, X, Check, Copy, Link2, Trash2, AlertTriangle } from 'lucide-react'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/frontend/components/ui/dropdown-menu'
 import { formatTimeAgo, formatNumber } from '@/backend/lib/utils'
 import { useAuth } from '@/backend/lib/auth-context'
@@ -76,6 +76,12 @@ export function PostCard({ post, onDelete }: PostCardProps) {
   const [likeAnim, setLikeAnim] = useState(false)
   const [isDeleted, setIsDeleted] = useState(false)
 
+  // Report post state
+  const [reportOpen, setReportOpen] = useState(false)
+  const [reportReason, setReportReason] = useState('spam')
+  const [reportDetails, setReportDetails] = useState('')
+  const [isReporting, setIsReporting] = useState(false)
+
   const isOwner = currentUser?.id === (post.userId || post.user_id)
   // Safely build user object — never let it be undefined
   const rawUser = isOwner ? currentUser : (post.user || {})
@@ -107,6 +113,34 @@ export function PostCard({ post, onDelete }: PostCardProps) {
       }
     } catch {
       toast.error('Connection error')
+    }
+  }
+
+  const handleReportPost = async () => {
+    if (!currentUser) return
+    setIsReporting(true)
+    try {
+      const res = await fetch(`/api/posts/${post.id}/report`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: currentUser.id,
+          reason: reportReason,
+          details: reportDetails
+        })
+      })
+      if (res.ok) {
+        toast.success('Thank you for your report. The content is under review.')
+        setReportOpen(false)
+        setReportDetails('')
+      } else {
+        throw new Error('Failed to submit report')
+      }
+    } catch (err) {
+      console.error(err)
+      toast.error('Failed to submit report. Please try again.')
+    } finally {
+      setIsReporting(false)
     }
   }
 
@@ -360,11 +394,15 @@ export function PostCard({ post, onDelete }: PostCardProps) {
                 {t('post_delete_btn')}
               </DropdownMenuItem>
             )}
-            {!isOwner && (
-              <DropdownMenuItem className="text-muted-foreground cursor-not-allowed" disabled>
+             {!isOwner && (
+              <DropdownMenuItem 
+                className="text-amber-600 font-semibold cursor-pointer focus:bg-amber-50 focus:text-amber-700 dark:focus:bg-amber-950/20"
+                onClick={() => setReportOpen(true)}
+              >
+                <AlertTriangle className="h-4 w-4 mr-2" />
                 {t('post_report_btn')}
               </DropdownMenuItem>
-            )}
+             )}
           </DropdownMenuContent>
         </DropdownMenu>
       </CardHeader>
@@ -708,6 +746,73 @@ export function PostCard({ post, onDelete }: PostCardProps) {
             ) : (
               <p className="text-center text-muted-foreground text-sm">{t('post_no_convos')}</p>
             )}
+          </div>
+        </DialogContent>
+      </Dialog>
+      {/* Report Post Dialog */}
+      <Dialog open={reportOpen} onOpenChange={setReportOpen}>
+        <DialogContent className="sm:max-w-md bg-background border border-border rounded-2xl p-6 shadow-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-amber-500" />
+              Report Post
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-4 space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Please select a reason why you are reporting this post.
+            </p>
+            <div className="space-y-2">
+              {[
+                { value: 'spam', label: 'Spam' },
+                { value: 'harassment', label: 'Harassment or Bullying' },
+                { value: 'inappropriate', label: 'Inappropriate Content' },
+                { value: 'misinformation', label: 'False Information' },
+                { value: 'other', label: 'Other Reason' }
+              ].map(reason => (
+                <label 
+                  key={reason.value} 
+                  className={cn(
+                    "flex items-center gap-3 p-3 rounded-xl border border-border/50 hover:bg-secondary/40 cursor-pointer transition-colors",
+                    reportReason === reason.value && "border-primary bg-primary/5"
+                  )}
+                >
+                  <input
+                    type="radio"
+                    name="report_reason"
+                    value={reason.value}
+                    checked={reportReason === reason.value}
+                    onChange={() => setReportReason(reason.value)}
+                    className="accent-primary h-4 w-4"
+                  />
+                  <span className="text-sm font-semibold text-foreground">{reason.label}</span>
+                </label>
+              ))}
+            </div>
+            
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">Additional Details</label>
+              <textarea
+                value={reportDetails}
+                onChange={(e) => setReportDetails(e.target.value)}
+                placeholder="Help us understand the issue (optional)..."
+                rows={3}
+                className="w-full text-sm p-3 rounded-xl border border-border/50 bg-secondary/20 outline-none focus:ring-1 focus:ring-primary/50 resize-none transition-all text-foreground"
+              />
+            </div>
+            
+            <div className="flex gap-3 justify-end pt-2">
+              <Button variant="ghost" onClick={() => setReportOpen(false)} className="rounded-xl font-semibold">
+                Cancel
+              </Button>
+              <Button
+                onClick={handleReportPost}
+                disabled={isReporting}
+                className="bg-gradient-to-r from-red-600 to-amber-600 hover:from-red-700 hover:to-amber-700 text-white rounded-xl px-5 font-semibold border-0 shadow-md transition-all"
+              >
+                {isReporting ? 'Submitting...' : 'Submit Report'}
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>

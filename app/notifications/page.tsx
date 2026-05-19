@@ -70,6 +70,7 @@ export default function NotificationsPage() {
   const filteredNotifications = notifications.filter((notif) => {
     if (activeTab === 'all') return true
     if (activeTab === 'unread') return !notif.is_read
+    if (activeTab === 'follow') return notif.type === 'follow' || notif.type === 'follow_request'
     return notif.type === activeTab
   })
 
@@ -104,11 +105,32 @@ export default function NotificationsPage() {
     } catch {}
   }
 
+  const handleFollowRequest = async (fromUserId: string, action: 'accept' | 'reject', notifId: string) => {
+    if (!currentUser) return
+    try {
+      const res = await fetch('/api/users/follow-request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fromUserId, action, toUserId: currentUser.id }),
+      })
+      if (res.ok) {
+        // Instantly remove from list
+        setNotifications((prev) => prev.filter((n) => n.id !== notifId))
+      } else {
+        const errData = await res.json()
+        alert(errData.error || 'Failed to handle follow request')
+      }
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
   const getNotificationIcon = (type: string) => {
     switch (type) {
       case 'like': return <Heart className="h-4 w-4 text-red-500" />
       case 'comment': return <MessageCircle className="h-4 w-4 text-blue-500" />
       case 'follow': return <UserPlus className="h-4 w-4 text-green-500" />
+      case 'follow_request': return <UserPlus className="h-4 w-4 text-amber-500 animate-pulse" />
       case 'mention': return <AtSign className="h-4 w-4 text-purple-500" />
       case 'group_invite': return <Users className="h-4 w-4 text-orange-500" />
       case 'rating': return <Star className="h-4 w-4 text-yellow-500" />
@@ -233,6 +255,34 @@ export default function NotificationsPage() {
                         <p className="text-xs text-muted-foreground/60 mt-1">
                           {formatTimeAgo(notif.created_at)}
                         </p>
+                        
+                        {notif.type === 'follow_request' && (
+                          <div className="flex gap-2 mt-3">
+                            <Button 
+                              size="sm" 
+                              className="h-8 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white font-semibold px-4 rounded-full shadow-md transition-all duration-200"
+                              onClick={(e) => {
+                                e.preventDefault()
+                                e.stopPropagation()
+                                handleFollowRequest(notif.from_user_id!, 'accept', notif.id)
+                              }}
+                            >
+                              Accept
+                            </Button>
+                            <Button 
+                              size="sm" 
+                              variant="outline" 
+                              className="h-8 font-semibold px-4 rounded-full hover:bg-muted/50 transition-all duration-200"
+                              onClick={(e) => {
+                                e.preventDefault()
+                                e.stopPropagation()
+                                handleFollowRequest(notif.from_user_id!, 'reject', notif.id)
+                              }}
+                            >
+                              Reject
+                            </Button>
+                          </div>
+                        )}
                       </Link>
 
                       {/* Actions */}

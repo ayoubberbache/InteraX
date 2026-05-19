@@ -30,6 +30,7 @@ export interface User {
   points: number
   coverUrl: string | null
   login_at?: number
+  isPrivate?: boolean
 }
 
 interface AuthContextType {
@@ -63,6 +64,7 @@ function dbToUser(d: any): User {
     role: d.role || 'user',
     points: d.points || 0,
     coverUrl: d.cover_url || null,
+    isPrivate: d.is_private || false,
     login_at: Date.now(),
   }
 }

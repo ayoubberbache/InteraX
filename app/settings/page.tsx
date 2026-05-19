@@ -61,13 +61,25 @@ export default function SettingsPage() {
   const [messagesNotif, setMessagesNotif] = useState(true)
   
   // Privacy settings
-  const [privateAccount, setPrivateAccount] = useState(false)
+  const [privateAccount, setPrivateAccount] = useState(currentUser?.isPrivate || false)
   const [showActivity, setShowActivity] = useState(true)
   const [allowTags, setAllowTags] = useState(true)
 
   useEffect(() => {
     setMounted(true)
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      setPushEnabled(Notification.permission === 'granted')
+    }
   }, [])
+
+  useEffect(() => {
+    if (currentUser) {
+      setName(currentUser.name || '')
+      setUsername(currentUser.username || '')
+      setBio(currentUser.bio || '')
+      setPrivateAccount(currentUser.isPrivate || false)
+    }
+  }, [currentUser])
 
   useEffect(() => {
     if (!isLoggedIn) {
@@ -169,6 +181,50 @@ export default function SettingsPage() {
     }
   }
 
+  const handlePrivacyToggle = async (checked: boolean) => {
+    if (!currentUser) return
+    setPrivateAccount(checked)
+    try {
+      const res = await fetch('/api/users', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: currentUser.id, is_private: checked })
+      })
+      if (!res.ok) throw new Error('Failed to update privacy setting')
+      if (refreshUser) await refreshUser()
+      toast.success('Privacy setting updated')
+    } catch (err) {
+      console.error(err)
+      setPrivateAccount(!checked)
+      toast.error('Failed to update privacy setting')
+    }
+  }
+
+  const handlePushNotifToggle = async (checked: boolean) => {
+    if (checked) {
+      if ('Notification' in window) {
+        const permission = await Notification.requestPermission()
+        if (permission === 'granted') {
+          setPushEnabled(true)
+          toast.success('Notification permission granted!')
+          new Notification('InteraX', {
+            body: 'You have enabled push notifications on InteraX!',
+            icon: currentUser?.avatar || '/favicon.ico'
+          })
+        } else {
+          setPushEnabled(false)
+          toast.error('Notification permission denied.')
+        }
+      } else {
+        setPushEnabled(false)
+        toast.error('Your browser does not support notifications.')
+      }
+    } else {
+      setPushEnabled(false)
+      toast.success('Push notifications muted locally. Block permission in browser to completely disable.')
+    }
+  }
+
   const renderContent = () => {
     switch (activeSection) {
       case 'profile':
@@ -252,7 +308,7 @@ export default function SettingsPage() {
                     <p className="text-sm text-muted-foreground">{t('set_push_notif_desc')}</p>
                   </div>
                 </div>
-                <Switch checked={pushEnabled} onCheckedChange={setPushEnabled} />
+                <Switch checked={pushEnabled} onCheckedChange={handlePushNotifToggle} />
               </div>
               
               <div className="flex items-center justify-between">
@@ -314,13 +370,13 @@ export default function SettingsPage() {
               
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <Lock className="h-5 w-5 text-muted-foreground" />
-                  <div>
-                    <Label>{t('set_private_account')}</Label>
-                    <p className="text-sm text-muted-foreground">{t('set_private_account_desc')}</p>
-                  </div>
+                   <Lock className="h-5 w-5 text-muted-foreground" />
+                   <div>
+                     <Label>{t('set_private_account')}</Label>
+                     <p className="text-sm text-muted-foreground">{t('set_private_account_desc')}</p>
+                   </div>
                 </div>
-                <Switch checked={privateAccount} onCheckedChange={setPrivateAccount} />
+                <Switch checked={privateAccount} onCheckedChange={handlePrivacyToggle} />
               </div>
               
               <div className="flex items-center justify-between">
