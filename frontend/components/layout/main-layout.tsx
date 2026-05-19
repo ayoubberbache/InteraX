@@ -6,7 +6,7 @@ import { Sidebar } from './sidebar'
 import { BottomNav } from './bottom-nav'
 import { cn } from '@/backend/lib/utils'
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useAuth } from '@/backend/lib/auth-context'
 
 interface MainLayoutProps {
@@ -22,6 +22,47 @@ export function MainLayout({
 }: MainLayoutProps) {
   const pathname = usePathname()
   const { currentUser } = useAuth()
+  const [viewportHeight, setViewportHeight] = useState<number | null>(null)
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    const updateHeight = () => {
+      if (window.innerWidth >= 768) {
+        setViewportHeight(null)
+        return
+      }
+      if (window.visualViewport) {
+        setViewportHeight(window.visualViewport.height)
+      } else {
+        setViewportHeight(window.innerHeight)
+      }
+    }
+
+    updateHeight()
+
+    const handleResize = () => {
+      updateHeight()
+    }
+
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', handleResize)
+      window.visualViewport.addEventListener('scroll', handleResize)
+    } else {
+      window.addEventListener('resize', handleResize)
+    }
+    window.addEventListener('resize', handleResize)
+
+    return () => {
+      if (window.visualViewport) {
+        window.visualViewport.removeEventListener('resize', handleResize)
+        window.visualViewport.removeEventListener('scroll', handleResize)
+      } else {
+        window.removeEventListener('resize', handleResize)
+      }
+      window.removeEventListener('resize', handleResize)
+    }
+  }, [])
   
   useEffect(() => {
     if (!currentUser) return
@@ -81,6 +122,20 @@ export function MainLayout({
       }
     }
   }, [pathname])
+
+  useEffect(() => {
+    if (pathname !== '/chat') return
+
+    const lockScroll = () => {
+      if (window.scrollY !== 0 || window.scrollX !== 0) {
+        window.scrollTo(0, 0)
+      }
+    }
+    window.addEventListener('scroll', lockScroll)
+    return () => {
+      window.removeEventListener('scroll', lockScroll)
+    }
+  }, [pathname])
   
   const isAuthPage = pathname === '/login' || pathname === '/logout' || pathname === '/signup'
   const isFullWidth = pathname === '/chat'
@@ -103,17 +158,24 @@ export function MainLayout({
         <Sidebar />
 
         {/* Main Content */}
-        <main className={cn(
-          "flex-1 md:ms-64",
-          isFullWidth
-            ? cn(
-                "overflow-hidden",
-                (hideHeaderMobile && hideBottomNavMobile)
-                  ? "h-[100dvh] md:h-[calc(100vh-3.5rem)]"
-                  : "h-[calc(100vh-7.5rem)] md:h-[calc(100vh-3.5rem)]"
-              )
-            : "min-h-screen pb-16 md:pb-0 w-full max-w-full overflow-x-hidden"
-        )}>
+        <main 
+          className={cn(
+            "flex-1 md:ms-64",
+            isFullWidth
+              ? cn(
+                  "overflow-hidden",
+                  (hideHeaderMobile && hideBottomNavMobile)
+                    ? "h-[100dvh] md:h-[calc(100vh-3.5rem)]"
+                    : "h-[calc(100vh-7.5rem)] md:h-[calc(100vh-3.5rem)]"
+                )
+              : "min-h-screen pb-16 md:pb-0 w-full max-w-full overflow-x-hidden"
+          )}
+          style={isFullWidth && viewportHeight ? {
+            height: (hideHeaderMobile && hideBottomNavMobile)
+              ? `${viewportHeight}px`
+              : `${viewportHeight - 120}px`
+          } : undefined}
+        >
           {children}
         </main>
       </div>
