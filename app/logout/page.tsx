@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
@@ -7,7 +7,6 @@ import { LogOut, ArrowLeft } from 'lucide-react'
 import { useAuth } from '@/backend/lib/auth-context'
 import { Button } from '@/frontend/components/ui/button'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/frontend/components/ui/card'
-import { ThemeToggle } from '@/frontend/components/theme/theme-toggle'
 
 export default function LogoutPage() {
   const router = useRouter()
@@ -32,10 +31,7 @@ export default function LogoutPage() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-background">
-      {/* Theme toggle in corner */}
-      <div className="fixed top-4 right-4">
-        <ThemeToggle />
-      </div>
+
 
       <div className="w-full max-w-sm space-y-6">
         {/* Logo */}

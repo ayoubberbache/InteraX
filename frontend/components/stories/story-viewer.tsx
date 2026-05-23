@@ -62,6 +62,14 @@ export function StoryViewer({
   const { currentUser } = useAuth()
   const { t } = useLanguage()
 
+  // Owner views & reactions list state
+  const [viewers, setViewers] = useState<any[]>([])
+  const [allReactions, setAllReactions] = useState<any[]>([])
+  const [loadingViewers, setLoadingViewers] = useState(false)
+  const [loadingReactions, setLoadingReactions] = useState(false)
+  const [showViewersPanel, setShowViewersPanel] = useState(false)
+  const [activeTab, setActiveTab] = useState<'views' | 'reactions'>('views')
+
   useEffect(() => {
     setMounted(true)
   }, [])
@@ -117,15 +125,12 @@ export function StoryViewer({
   useEffect(() => {
     setProgress(0)
     setHasLiked(false)
+    setShowViewersPanel(false)
 
     // Load existing reactions
     fetch(`/api/stories/reactions?storyId=${story.id}`)
       .then(res => {
         if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`)
-        const contentType = res.headers.get('content-type')
-        if (!contentType || !contentType.includes('application/json')) {
-          throw new TypeError('Expected JSON response')
-        }
         return res.json()
       })
       .then(data => {
@@ -136,6 +141,27 @@ export function StoryViewer({
         }
       })
       .catch(console.error)
+
+    // Load viewers list if owner
+    if (currentUser && currentUser.id === story.userId) {
+      setLoadingViewers(true)
+      fetch(`/api/stories/view?storyId=${story.id}`)
+        .then(res => res.json())
+        .then(data => {
+          if (Array.isArray(data)) setViewers(data)
+        })
+        .catch(console.error)
+        .finally(() => setLoadingViewers(false))
+
+      setLoadingReactions(true)
+      fetch(`/api/stories/reactions?storyId=${story.id}`)
+        .then(res => res.json())
+        .then(data => {
+          if (Array.isArray(data)) setAllReactions(data)
+        })
+        .catch(console.error)
+        .finally(() => setLoadingReactions(false))
+    }
   }, [story.id, currentUser])
 
   const addReaction = (emoji: string) => {
@@ -400,6 +426,120 @@ export function StoryViewer({
           >
             <Heart className={cn("h-5 w-5", hasLiked && "fill-current")} />
           </Button>
+        </div>
+      )}
+
+      {/* Views & Reactions button for owner */}
+      {currentUser && currentUser.id === story.userId && (
+        <div className="absolute bottom-4 left-0 right-0 z-30 flex justify-center bg-gradient-to-t from-black/80 to-transparent p-4 pb-6">
+          <Button
+            onClick={() => {
+              setIsPaused(true)
+              setShowViewersPanel(true)
+            }}
+            variant="secondary"
+            className="rounded-full bg-white/20 text-white hover:bg-white/30 backdrop-blur-md gap-2 px-6 py-2 h-auto text-sm font-semibold cursor-pointer border border-white/10"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="mr-1"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+            <span>{viewers.length} Views</span>
+            {allReactions.length > 0 && (
+              <span className="ml-1 border-l border-white/30 pl-2 flex items-center gap-1">
+                <span>{allReactions[0]?.emoji}</span>
+                <span>{allReactions.length}</span>
+              </span>
+            )}
+          </Button>
+        </div>
+      )}
+
+      {/* Viewers & Reactions slide-up panel for owner */}
+      {currentUser && currentUser.id === story.userId && showViewersPanel && (
+        <div className="absolute inset-x-0 bottom-0 h-[60%] bg-card border-t border-border rounded-t-2xl z-40 p-4 text-foreground flex flex-col animate-in slide-in-from-bottom duration-300">
+          <div className="flex justify-between items-center mb-3 pb-2 border-b border-border/50">
+            <h3 className="font-bold text-sm">Story Activity</h3>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 rounded-full cursor-pointer"
+              onClick={() => {
+                setShowViewersPanel(false)
+                setIsPaused(false)
+              }}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+
+          {/* Tabs */}
+          <div className="flex gap-4 border-b border-border/50 mb-3 text-xs font-semibold">
+            <button
+              onClick={() => setActiveTab('views')}
+              className={cn(
+                "pb-2 border-b-2 px-1 cursor-pointer",
+                activeTab === 'views' ? "border-primary text-primary" : "border-transparent text-muted-foreground"
+              )}
+            >
+              Views ({viewers.length})
+            </button>
+            <button
+              onClick={() => setActiveTab('reactions')}
+              className={cn(
+                "pb-2 border-b-2 px-1 cursor-pointer",
+                activeTab === 'reactions' ? "border-primary text-primary" : "border-transparent text-muted-foreground"
+              )}
+            >
+              Reactions ({allReactions.length})
+            </button>
+          </div>
+
+          {/* List Area */}
+          <div className="flex-1 overflow-y-auto space-y-3 pr-1">
+            {activeTab === 'views' ? (
+              loadingViewers ? (
+                <div className="flex justify-center p-4"><div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary" /></div>
+              ) : viewers.length > 0 ? (
+                viewers.map((viewer) => (
+                  <div key={viewer.user_id} className="flex items-center gap-3">
+                    <Avatar className="h-9 w-9">
+                      <AvatarImage src={viewer.avatar || undefined} />
+                      <AvatarFallback>{viewer.name?.[0]}</AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0 text-left">
+                      <p className="text-xs font-semibold truncate">{viewer.name}</p>
+                      <p className="text-[10px] text-muted-foreground truncate">@{viewer.username}</p>
+                    </div>
+                    {viewer.created_at && (
+                      <span className="text-[9px] text-muted-foreground">{formatTimeAgo(viewer.created_at)}</span>
+                    )}
+                  </div>
+                ))
+              ) : (
+                <p className="text-xs text-muted-foreground text-center py-6">No views yet</p>
+              )
+            ) : (
+              loadingReactions ? (
+                <div className="flex justify-center p-4"><div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary" /></div>
+              ) : allReactions.length > 0 ? (
+                allReactions.map((react, idx) => (
+                  <div key={idx} className="flex items-center gap-3">
+                    <Avatar className="h-9 w-9">
+                      <AvatarImage src={react.avatar || undefined} />
+                      <AvatarFallback>{react.name?.[0]}</AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0 text-left">
+                      <p className="text-xs font-semibold truncate">{react.name}</p>
+                      <p className="text-[10px] text-muted-foreground truncate">@{react.username}</p>
+                    </div>
+                    <span className="text-lg p-1 bg-secondary/50 rounded-full leading-none flex items-center justify-center h-7 w-7 select-none">
+                      {react.emoji}
+                    </span>
+                  </div>
+                ))
+              ) : (
+                <p className="text-xs text-muted-foreground text-center py-6">No reactions yet</p>
+              )
+            )}
+          </div>
         </div>
       )}
 

@@ -44,11 +44,14 @@ export async function GET(req: NextRequest) {
     const storyId = req.nextUrl.searchParams.get('storyId')
     if (!storyId) return NextResponse.json({ error: 'storyId required' }, { status: 400 })
 
-    const reactions = await query(
-      'SELECT emoji, user_id FROM story_reactions WHERE story_id = $1 ORDER BY created_at ASC',
-      [storyId]
-    )
-    return NextResponse.json(reactions.map((r: any) => ({ emoji: r.emoji, userId: r.user_id })))
+    const reactions = await query(`
+      SELECT sr.emoji, sr.user_id as "userId", u.full_name as name, u.username, u.avatar_url as avatar
+      FROM story_reactions sr
+      JOIN users u ON sr.user_id = u.id
+      WHERE sr.story_id = $1
+      ORDER BY sr.created_at DESC
+    `, [storyId])
+    return NextResponse.json(reactions)
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }

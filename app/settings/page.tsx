@@ -32,6 +32,7 @@ import getCroppedImg from '@/frontend/lib/cropImage'
 import { uploadMedia } from '@/backend/lib/upload'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/frontend/components/ui/dialog'
 import { cn } from '@/backend/lib/utils'
+import { useColorTheme } from '@/frontend/components/color-theme-provider'
 
 type SettingsSection = 'profile' | 'notifications' | 'privacy' | 'appearance' | 'language' | 'blocks' | 'groups' | 'pages' | 'help'
 
@@ -39,6 +40,7 @@ export default function SettingsPage() {
   const router = useRouter()
   const { currentUser, isLoggedIn, logout, refreshUser } = useAuth()
   const { theme, setTheme } = useTheme()
+  const { palette, setPalette } = useColorTheme()
   const { language, setLanguage, t } = useLanguage()
   const [activeSection, setActiveSection] = useState<SettingsSection>('profile')
   const [mounted, setMounted] = useState(false)
@@ -609,39 +611,79 @@ export default function SettingsPage() {
       
       case 'appearance':
         return (
-          <div className="space-y-6">
+          <div className="space-y-6 animate-in fade-in-50 duration-200">
+            {/* Color Theme Selector */}
             <div className="space-y-4">
-              <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">{t('set_theme')}</h3>
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">{t('set_color_palette')}</h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <button
+                  onClick={() => setPalette('default')}
+                  className={`flex flex-col items-start gap-3 p-4 rounded-xl border-2 transition-all text-left group cursor-pointer ${
+                    mounted && palette === 'default' ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50 bg-card'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <div className="h-6 w-6 rounded-full bg-gradient-to-tr from-[#4B0082] to-[#9370DB] shadow-sm group-hover:scale-105 transition-transform" />
+                    <span className="text-sm font-bold text-foreground">{t('palette_lavender_violet')}</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    Clean, high-fidelity experience featuring deep indigo accents, rich purple brand hues, and violet backdrops.
+                  </p>
+                </button>
+                
+                <button
+                  onClick={() => setPalette('oat-olive')}
+                  className={`flex flex-col items-start gap-3 p-4 rounded-xl border-2 transition-all text-left group cursor-pointer ${
+                    mounted && palette === 'oat-olive' ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50 bg-card'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <div className="h-6 w-6 rounded-full bg-gradient-to-tr from-[#415B06] to-[#6C862F] shadow-sm group-hover:scale-105 transition-transform" />
+                    <span className="text-sm font-bold text-foreground">{t('palette_oat_olive')}</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    Earthy, warm aesthetic combining organic brand olive accents with soothing cream and oat backgrounds.
+                  </p>
+                </button>
+              </div>
+            </div>
+
+            <Separator className="my-6" />
+
+            {/* Theme Mode Selector */}
+            <div className="space-y-4">
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">{t('set_theme_mode')}</h3>
               
               <div className="grid grid-cols-3 gap-3">
                 <button
                   onClick={() => setTheme('light')}
-                  className={`flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-colors ${
-                    mounted && theme === 'light' ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'
+                  className={`flex flex-col items-center justify-center gap-2.5 p-4 rounded-xl border-2 transition-all cursor-pointer ${
+                    mounted && theme === 'light' ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50 bg-card'
                   }`}
                 >
-                  <Sun className="h-6 w-6" />
-                  <span className="text-sm font-medium">{t('set_theme_light')}</span>
+                  <Sun className="h-5 w-5 text-foreground" />
+                  <span className="text-sm font-bold text-foreground">{t('set_theme_light')}</span>
                 </button>
                 
                 <button
                   onClick={() => setTheme('dark')}
-                  className={`flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-colors ${
-                    mounted && theme === 'dark' ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'
+                  className={`flex flex-col items-center justify-center gap-2.5 p-4 rounded-xl border-2 transition-all cursor-pointer ${
+                    mounted && theme === 'dark' ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50 bg-card'
                   }`}
                 >
-                  <Moon className="h-6 w-6" />
-                  <span className="text-sm font-medium">{t('set_theme_dark')}</span>
+                  <Moon className="h-5 w-5 text-foreground" />
+                  <span className="text-sm font-bold text-foreground">{t('set_theme_dark')}</span>
                 </button>
                 
                 <button
                   onClick={() => setTheme('system')}
-                  className={`flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-colors ${
-                    mounted && theme === 'system' ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'
+                  className={`flex flex-col items-center justify-center gap-2.5 p-4 rounded-xl border-2 transition-all cursor-pointer ${
+                    mounted && theme === 'system' ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50 bg-card'
                   }`}
                 >
-                  <Monitor className="h-6 w-6" />
-                  <span className="text-sm font-medium">{t('set_theme_system')}</span>
+                  <Monitor className="h-5 w-5 text-foreground" />
+                  <span className="text-sm font-bold text-foreground">{t('set_theme_system')}</span>
                 </button>
               </div>
             </div>

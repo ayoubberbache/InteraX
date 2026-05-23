@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Heart, MessageCircle, UserPlus, AtSign, Users, Star, Check, Bell, Trash2, Newspaper, BookOpen } from 'lucide-react'
+import { Heart, MessageCircle, UserPlus, AtSign, Users, Star, Check, Bell, Trash2, Newspaper, BookOpen, Calendar } from 'lucide-react'
 import { MainLayout } from '@/frontend/components/layout/main-layout'
 import { useAuth } from '@/backend/lib/auth-context'
 import { formatTimeAgo } from '@/backend/lib/utils'
@@ -137,6 +137,7 @@ export default function NotificationsPage() {
       case 'story': return <BookOpen className="h-4 w-4 text-purple-500" />
       case 'story_reaction': return <Heart className="h-4 w-4 text-red-500" />
       case 'post': return <Newspaper className="h-4 w-4 text-emerald-500" />
+      case 'event_arrival': return <Calendar className="h-4 w-4 text-purple-500" />
       default: return <Bell className="h-4 w-4 text-muted-foreground" />
     }
   }

@@ -146,13 +146,13 @@ export function MainLayout({
 
   return (
     <div className="min-h-screen bg-background flex flex-col w-full max-w-full overflow-x-hidden">
-      <div className={cn(hideHeaderMobile && "hidden md:block")}>
+      <div className={cn("md:hidden", hideHeaderMobile && "hidden")}>
         <Header />
       </div>
       
       <div className={cn(
         "flex flex-1",
-        hideHeaderMobile ? "pt-0 md:pt-14" : "pt-14"
+        hideHeaderMobile ? "pt-0 md:pt-0" : "pt-14 md:pt-0"
       )}>
         {/* Left Sidebar - Desktop only */}
         <Sidebar />
@@ -165,8 +165,8 @@ export function MainLayout({
               ? cn(
                   "overflow-hidden",
                   (hideHeaderMobile && hideBottomNavMobile)
-                    ? "h-[100dvh] md:h-[calc(100vh-3.5rem)]"
-                    : "h-[calc(100vh-7.5rem)] md:h-[calc(100vh-3.5rem)]"
+                    ? "h-[100dvh] md:h-[100vh]"
+                    : "h-[calc(100vh-7.5rem)] md:h-[100vh]"
                 )
               : "min-h-screen pb-16 md:pb-0 w-full max-w-full overflow-x-hidden"
           )}

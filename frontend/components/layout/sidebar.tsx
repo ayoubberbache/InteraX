@@ -16,6 +16,8 @@ import { Badge } from '@/frontend/components/ui/badge'
 
 import { TranslationKey } from '@/backend/lib/i18n/translations'
 
+import { InteraXLogo } from '@/frontend/components/ui/logo'
+
 const navItems: { href: string, icon: any, transKey: TranslationKey }[] = [
   { href: '/', icon: Home, transKey: 'nav_home' },
   { href: '/search', icon: Search, transKey: 'nav_explore' },
@@ -58,9 +60,19 @@ export function Sidebar() {
   }
 
   return (
-    <aside className="hidden md:flex fixed start-0 top-14 bottom-0 w-64 flex-col border-e border-border bg-background z-40 overflow-y-auto">
+    <aside className="hidden md:flex fixed start-0 top-0 bottom-0 w-64 flex-col border-e border-border bg-card z-40 overflow-y-auto p-4">
+      {/* Logo */}
+      <div className="mb-6 flex items-center px-2 pt-2">
+        <Link href="/" className="flex items-center gap-2.5 group">
+          <InteraXLogo className="h-9 w-auto transition-transform duration-300 group-hover:scale-110" />
+          <span className="font-black text-xl tracking-tight bg-clip-text text-transparent" style={{ backgroundImage: 'var(--brand-gradient)' }}>
+            InteraX
+          </span>
+        </Link>
+      </div>
+
       {/* Nav */}
-      <nav className="flex-1 p-3 space-y-0.5">
+      <nav className="flex-1 space-y-0.5">
         {navItems.map((item) => {
           const isActive = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href))
           const Icon = item.icon
@@ -73,19 +85,19 @@ export function Sidebar() {
               key={item.href}
               href={href}
               className={cn(
-                'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all group',
+                'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all group cursor-pointer',
                 isActive
-                  ? 'bg-gradient-to-r from-[#4B0082]/10 to-[#E6E6FA]/10 text-primary font-semibold'
-                  : 'text-muted-foreground hover:bg-secondary/50 hover:text-foreground'
+                  ? 'bg-primary/10 text-primary font-semibold'
+                  : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
               )}
             >
               <div className={cn(
                 'h-9 w-9 rounded-xl flex items-center justify-center transition-colors flex-shrink-0',
                 isActive 
-                  ? 'bg-gradient-to-br from-[#4B0082] to-[#E6E6FA] text-white shadow-md shadow-primary/20'
+                  ? 'bg-primary text-white shadow-md shadow-primary/20'
                   : 'bg-secondary/50 text-muted-foreground group-hover:bg-secondary'
               )}>
-                <Icon className="h-4.5 w-4.5 h-[18px] w-[18px]" />
+                <Icon className="h-[18px] w-[18px]" />
               </div>
               <span>{t(item.transKey)}</span>
               {item.href === '/notifications' && unreadCount > 0 && (
@@ -98,9 +110,29 @@ export function Sidebar() {
         })}
       </nav>
 
-
-
-
+      {/* User profile & Actions at bottom */}
+      {isLoggedIn && currentUser && (
+        <div className="mt-auto pt-4 border-t border-border flex flex-col gap-2">
+          <div className="flex items-center gap-3 px-2 py-1.5">
+            <Avatar className="h-9 w-9">
+              <AvatarImage src={currentUser.avatar || undefined} alt={currentUser.name} />
+              <AvatarFallback className="bg-primary/10 text-primary uppercase">{currentUser.name?.[0]}</AvatarFallback>
+            </Avatar>
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold text-xs truncate">{currentUser.name}</p>
+              <p className="text-[10px] text-muted-foreground truncate">@{currentUser.username}</p>
+            </div>
+          </div>
+          <Button
+            variant="ghost"
+            onClick={logout}
+            className="flex items-center justify-start gap-3 w-full rounded-xl px-3 py-2 text-sm text-destructive hover:bg-destructive/10 hover:text-destructive cursor-pointer"
+          >
+            <LogOut className="h-[18px] w-[18px] text-destructive shrink-0" />
+            <span>Logout</span>
+          </Button>
+        </div>
+      )}
     </aside>
   )
 }

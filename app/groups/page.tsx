@@ -115,7 +115,7 @@ export default function GroupsPage() {
           
           <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
             <DialogTrigger asChild>
-              <Button className="rounded-full bg-gradient-to-r from-[#4B0082] to-[#9370DB] text-white shadow-lg hover:shadow-primary/20 transition-all flex-shrink-0">
+              <Button className="rounded-full bg-brand-gradient text-primary-foreground shadow-lg hover:brightness-110 transition-all flex-shrink-0 border-0 cursor-pointer">
                 <Plus className="h-4 w-4 mr-2" />
                 {t('create_btn')}
               </Button>

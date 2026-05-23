@@ -32,6 +32,11 @@ export async function POST(
     const { userId, emoji } = await req.json()
     if (!userId) return NextResponse.json({ error: 'Unauthorized: userId required' }, { status: 401 })
 
+    const ALLOWED_EMOJIS = ['❤️', '👍', '👎', '👏', '😂', '🤔']
+    if (emoji && !ALLOWED_EMOJIS.includes(emoji)) {
+      return NextResponse.json({ error: 'Invalid reaction' }, { status: 400 })
+    }
+
     const existing = await queryOne('SELECT * FROM post_likes WHERE post_id = $1 AND user_id = $2', [postId, userId])
 
     if (existing) {

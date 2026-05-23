@@ -10,7 +10,6 @@ import { Button } from '@/frontend/components/ui/button'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/frontend/components/ui/card'
 import { Input } from '@/frontend/components/ui/input'
 import { Label } from '@/frontend/components/ui/label'
-import { ThemeToggle } from '@/frontend/components/theme/theme-toggle'
 import { Separator } from '@/frontend/components/ui/separator'
 import { InteraXLogo } from '@/frontend/components/ui/logo'
 import { supabase } from '@/backend/lib/supabase'
@@ -115,10 +114,7 @@ export default function SignupPage() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-background">
-      {/* Theme toggle in corner */}
-      <div className="fixed top-4 right-4">
-        <ThemeToggle />
-      </div>
+
 
       <div className="w-full max-w-sm space-y-6">
         {/* Logo */}

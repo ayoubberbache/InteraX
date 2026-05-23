@@ -4,7 +4,7 @@ import EmojiPicker from "emoji-picker-react"
 import { useState, useRef, useEffect } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { Heart, MessageCircle, Share2, Bookmark, MoreHorizontal, Send, X, Check, Copy, Link2, Trash2, AlertTriangle } from 'lucide-react'
+import { Heart, MessageCircle, Share2, Bookmark, MoreHorizontal, Send, X, Check, Copy, Link2, Trash2, AlertTriangle, ThumbsUp, Calendar } from 'lucide-react'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/frontend/components/ui/dropdown-menu'
 import { formatTimeAgo, formatNumber } from '@/backend/lib/utils'
 import { useAuth } from '@/backend/lib/auth-context'
@@ -30,6 +30,7 @@ export function PostCard({ post, onDelete }: PostCardProps) {
   const [isLiked, setIsLiked] = useState<boolean>(post.is_liked ?? false)
   const [selectedReact, setSelectedReact] = useState<string | null>(post.reaction || null)
   const [likesCount, setLikesCount] = useState<number>(post.likes || 0)
+  const [uniqueEmojis, setUniqueEmojis] = useState<string[]>(post.uniqueEmojis || [])
   const [userRating, setUserRating] = useState(0)
   const [ratingData, setRatingData] = useState({
     rating: post.rating || 0,
@@ -52,6 +53,37 @@ export function PostCard({ post, onDelete }: PostCardProps) {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
   const [commentText, setCommentText] = useState('')
   const commentInputRef = useRef<HTMLInputElement>(null)
+
+  // Poll States
+  const [pollOptions, setPollOptionsState] = useState<any[]>(post.poll?.options || [])
+  const [pollTotalVotes, setPollTotalVotes] = useState<number>(post.poll?.total_votes || 0)
+  const [userVotedOptionId, setUserVotedOptionId] = useState<string | null>(post.poll?.user_voted_option_id || null)
+
+  const handleVote = async (optionId: string) => {
+    if (!currentUser) {
+      toast.error('You must be logged in to vote')
+      return
+    }
+    try {
+      const res = await fetch(`/api/polls/${post.poll.id}/vote`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ optionId, userId: currentUser.id })
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setPollOptionsState(data.options)
+        setPollTotalVotes(data.total_votes)
+        setUserVotedOptionId(data.user_voted_option_id)
+        toast.success('Vote submitted!')
+      } else {
+        toast.error('Failed to submit vote')
+      }
+    } catch (err) {
+      console.error(err)
+      toast.error('Connection error')
+    }
+  }
 
   // Share
   const [showShareMenu, setShowShareMenu] = useState(false)
@@ -149,33 +181,65 @@ export function PostCard({ post, onDelete }: PostCardProps) {
     }
   }
 
-  const handleLikeToggle = async () => {
+  const handleSelectReaction = async (emoji: string) => {
     if (!currentUser) { toast.error('Please sign in to react'); return }
     
-    const wasLiked = isLiked
-    const newLiked = !wasLiked
+    const prevReact = selectedReact
+    const prevLiked = isLiked
     
-    setIsLiked(newLiked)
-    setSelectedReact(newLiked ? '❤️' : null)
-    setLikesCount(prev => newLiked ? prev + 1 : prev - 1)
+    setIsLiked(true)
+    setSelectedReact(emoji)
     
-    if (newLiked) {
-      setLikeAnim(true)
-      setTimeout(() => setLikeAnim(false), 600)
+    if (!prevLiked) {
+      setLikesCount(prev => prev + 1)
+    }
+
+    if (emoji && !uniqueEmojis.includes(emoji)) {
+      setUniqueEmojis(prev => [...prev.slice(0, 2), emoji])
     }
 
     try {
       const res = await fetch(`/api/posts/${post.id}/like`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: currentUser.id, emoji: '❤️' })
+        body: JSON.stringify({ userId: currentUser.id, emoji })
       })
       if (!res.ok) throw new Error('API Error')
     } catch {
-      setIsLiked(wasLiked)
-      setSelectedReact(wasLiked ? '❤️' : null)
-      setLikesCount(prev => wasLiked ? prev : prev - 1)
+      setIsLiked(prevLiked)
+      setSelectedReact(prevReact)
+      if (!prevLiked) {
+        setLikesCount(prev => prev - 1)
+      }
       toast.error('Connection error')
+    }
+  }
+
+  const handleLikeToggle = async () => {
+    if (!currentUser) { toast.error('Please sign in to react'); return }
+    
+    const wasLiked = isLiked
+    const prevReact = selectedReact
+    
+    if (wasLiked) {
+      setIsLiked(false)
+      setSelectedReact(null)
+      setLikesCount(prev => prev - 1)
+      try {
+        const res = await fetch(`/api/posts/${post.id}/like`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: currentUser.id, emoji: null })
+        })
+        if (!res.ok) throw new Error('API Error')
+      } catch {
+        setIsLiked(wasLiked)
+        setSelectedReact(prevReact)
+        setLikesCount(prev => prev + 1)
+        toast.error('Connection error')
+      }
+    } else {
+      handleSelectReaction('👍')
     }
   }
 
@@ -443,18 +507,18 @@ export function PostCard({ post, onDelete }: PostCardProps) {
 
       {/* Content: text-only (Threads style) or image or image+caption */}
       {hasImage ? (
-        <CardContent className="p-0">
+        <CardContent className="px-4 pb-3 pt-0">
           {/* Photo */}
           <div
-            className="relative w-full cursor-pointer select-none bg-secondary/20"
-            style={{ aspectRatio: '1 / 1' }}
+            className="relative w-full cursor-pointer select-none bg-secondary/20 overflow-hidden rounded-2xl border border-border/30"
+            style={{ aspectRatio: '1.5 / 1' }}
             onDoubleClick={handleDoubleTapLike}
           >
             {post.image.toLowerCase().endsWith('.mp4') || post.image.toLowerCase().endsWith('.webm') ? (
               <video
                 src={post.image}
                 controls
-                className="w-full h-full object-cover"
+                className="w-full h-full object-cover rounded-2xl"
                 onClick={(e) => e.stopPropagation()}
               />
             ) : (
@@ -462,7 +526,7 @@ export function PostCard({ post, onDelete }: PostCardProps) {
                 src={post.image}
                 alt={captionText || 'Post image'}
                 fill
-                className="object-cover"
+                className="object-cover rounded-2xl"
               />
             )}
             {likeAnim && (
@@ -523,223 +587,329 @@ export function PostCard({ post, onDelete }: PostCardProps) {
         </CardContent>
       ) : null}
 
-      {/* Actions */}
-      <CardFooter className="flex flex-col items-start gap-3 p-4">
-        <div className="flex w-full items-center justify-between">
-          <div className="flex items-center gap-1 group relative">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-10 w-10 rounded-full hover:bg-secondary"
-              onClick={handleLikeToggle}
-            >
-              <Heart
-                className={cn(
-                  "h-6 w-6 transition-all duration-300",
-                  isLiked ? "fill-red-500 text-red-500 scale-110" : "text-muted-foreground hover:text-red-500"
-                )}
-              />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-10 w-10 rounded-full hover:bg-blue-50 hover:text-blue-500"
-              onClick={toggleCommentsSection}
-            >
-              <MessageCircle className="h-6 w-6" />
-            </Button>
-            <div className="relative" ref={shareMenuRef}>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-10 w-10 rounded-full hover:bg-secondary"
-                onClick={handleShare}
-              >
-                <Share2 className="h-5 w-5" />
-              </Button>
-              {showShareMenu && (
-                <div className="absolute left-0 bottom-full mb-2 z-20 bg-popover border border-border rounded-xl p-2 shadow-xl min-w-[200px] animate-in fade-in slide-in-from-bottom-2">
-                  <button
-                    onClick={openInternalShare}
-                    className="flex items-center gap-2 w-full px-4 py-2.5 text-sm rounded-lg hover:bg-secondary transition-colors mb-1"
-                  >
-                    <Send className="h-4 w-4" />
-                    <span className="text-xs">{t('post_share_msg')}</span>
-                  </button>
-                  <button
-                    onClick={handleCopyLink}
-                    className="flex items-center gap-2 w-full px-4 py-2.5 text-sm rounded-lg hover:bg-secondary transition-colors"
-                  >
-                    {copied ? (
-                      <>
-                        <Check className="h-4 w-4 text-emerald-500" />
-                        <span className="text-emerald-500 font-medium text-xs">{t('post_link_copied')}</span>
-                      </>
-                    ) : (
-                      <>
-                        <Link2 className="h-4 w-4" />
-                        <span className="text-xs">{t('post_copy_link')}</span>
-                      </>
-                    )}
-                  </button>
-                  <button
-                    onClick={() => setShowShareMenu(false)}
-                    className="flex items-center gap-2 w-full px-4 py-1 text-xs rounded-lg hover:bg-red-50 text-red-500 transition-colors mt-1"
-                  >
-                    <X className="h-3 w-3" />
-                    <span>{t('post_cancel')}</span>
-                  </button>
+      {/* Render Poll (if exists) */}
+      {post.poll && (
+        <div className="px-4 pb-3 pt-2 space-y-3">
+          <h3 className="font-semibold text-sm text-foreground">{post.poll.question}</h3>
+          <div className="space-y-2">
+            {pollOptions.map((opt: any) => {
+              const totalVotes = pollTotalVotes;
+              const percent = totalVotes > 0 ? Math.round((opt.votes_count / totalVotes) * 100) : 0;
+              const hasVoted = !!userVotedOptionId;
+              
+              return (
+                <div key={opt.id} className="relative w-full">
+                  {hasVoted ? (
+                    // Voted view: show percentage progress bar
+                    <div className="relative w-full h-10 border border-border/60 bg-secondary/10 rounded-xl overflow-hidden flex items-center justify-between px-4 text-xs font-medium">
+                      <div 
+                        className="absolute left-0 top-0 bottom-0 bg-primary/10 transition-all duration-500" 
+                        style={{ width: `${percent}%` }}
+                      />
+                      <span className="relative z-10 text-foreground truncate max-w-[70%] flex items-center gap-1.5">
+                        {opt.option_text}
+                        {userVotedOptionId === opt.id && <Check className="h-3 w-3 text-primary shrink-0" />}
+                      </span>
+                      <span className="relative z-10 text-muted-foreground font-bold shrink-0">{percent}% ({opt.votes_count})</span>
+                    </div>
+                  ) : (
+                    // Actionable view: click to vote
+                    <button
+                      onClick={() => handleVote(opt.id)}
+                      className="w-full h-10 border border-border/80 hover:border-primary/50 hover:bg-primary/5 rounded-xl flex items-center px-4 text-xs font-semibold text-foreground transition-all text-left cursor-pointer active:scale-[0.99]"
+                    >
+                      {opt.option_text}
+                    </button>
+                  )}
                 </div>
-              )}
-            </div>
+              );
+            })}
           </div>
-          <div className="flex items-center gap-2">
-            {/* Rating Toggle */}
-            <div className="relative">
-              <Button
-                variant="secondary"
-                size="sm"
-                className="h-9 px-3 gap-1.5 rounded-full bg-secondary/50"
-                onClick={() => setShowRating(!showRating)}
-              >
-                <RatingDisplay rating={ratingData.rating} count={ratingData.count} size="sm" />
-              </Button>
-              {showRating && (
-                <div className="absolute right-0 bottom-full mb-3 z-30 bg-popover border border-border rounded-2xl p-4 shadow-2xl animate-in fade-in slide-in-from-bottom-4 min-w-[200px]">
-                  <p className="text-xs font-semibold mb-3 text-center">{t('post_quality_rating')}</p>
-                  <div className="flex justify-center">
-                    <StarRating
-                      rating={userRating}
-                      interactive
-                      onRatingChange={handleRating}
-                    />
-                  </div>
-                  <div className="mt-3 pt-3 border-t border-border flex justify-between items-center text-[10px] text-muted-foreground uppercase tracking-widest px-1">
-                    <span>{t('post_authentic')}</span>
-                    <span>{t('post_high_quality')}</span>
-                  </div>
+          <p className="text-[10px] text-muted-foreground font-medium">
+            {pollTotalVotes} {pollTotalVotes === 1 ? 'vote' : 'votes'}
+          </p>
+        </div>
+      )}
+
+      {/* Render Event (if exists) */}
+      {post.event && (
+        <div className="px-4 pb-4 pt-2">
+          <div className="border border-border/80 bg-gradient-to-br from-secondary/20 to-secondary/5 rounded-2xl p-4 space-y-3 shadow-inner">
+            <div className="flex items-start justify-between gap-3">
+              <div className="space-y-1">
+                <span className="inline-block bg-primary/15 text-primary text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full">
+                  Upcoming Event
+                </span>
+                <h3 className="font-bold text-base text-foreground leading-tight">{post.event.title}</h3>
+              </div>
+              <Calendar className="h-5 w-5 text-primary shrink-0 mt-1" />
+            </div>
+
+            {post.event.description && (
+              <p className="text-xs text-muted-foreground leading-relaxed">{post.event.description}</p>
+            )}
+
+            <div className="grid grid-cols-2 gap-3 text-xs pt-1 border-t border-border/30">
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Calendar className="h-3.5 w-3.5 text-muted-foreground/80 shrink-0" />
+                <span className="truncate">
+                  {new Date(post.event.event_date).toLocaleString([], {
+                    dateStyle: 'medium',
+                    timeStyle: 'short'
+                  })}
+                </span>
+              </div>
+              {post.event.location && (
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <span className="text-muted-foreground/80 font-bold shrink-0">📍</span>
+                  <span className="truncate">{post.event.location}</span>
                 </div>
               )}
             </div>
+            
             <Button
-              variant="ghost"
-              size="icon"
-              className="h-10 w-10 rounded-full"
-              onClick={handleSave}
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                toast.success("Reminder set! You'll be notified when the event arrives.");
+              }}
+              className="w-full text-xs font-semibold rounded-xl h-9 hover:bg-primary hover:text-primary-foreground transition-all cursor-pointer"
             >
-              <Bookmark
-                className={cn(
-                  'h-5 w-5 transition-all duration-300',
-                  isSaved && 'fill-primary text-primary scale-110'
-                )}
-              />
+              Set Reminder
             </Button>
           </div>
         </div>
+      )}
 
-        {/* Info — likes count only; caption shown above for photo posts */}
-        <div className="space-y-1 w-full px-1">
-          <button
-            onClick={openReactorsModal}
-            className="text-sm font-bold tracking-tight hover:underline focus:outline-none text-left cursor-pointer"
-          >
-            {formatNumber(likesCount)} {t('post_likes_count')}
-          </button>
-
-          {/* For photo-only posts (no caption shown above), show username inline */}
-          {!hasContent && (
-            <p className="text-sm text-muted-foreground">
-              <Link href={`/profile/${user.id}`} className="font-bold text-foreground mr-2 hover:text-primary transition-colors">
-                {user.username}
-              </Link>
-            </p>
-          )}
-
-          {/* Comments section */}
-          {showCommentsSection && (
-            <div className="space-y-2 mt-3 pt-3 border-t border-border/50">
-              {comments.length > 2 && !showAllComments && (
-                <button
-                  className="text-xs font-medium text-muted-foreground hover:text-primary transition-colors"
-                  onClick={() => setShowAllComments(true)}
-                >
-                  {t('post_view_all_expr')} {comments.length} {t('post_expressions')}
-                </button>
-              )}
-              {displayedComments.map(comment => (
-                <div key={comment.id} className="text-sm flex gap-2">
-                  <span className="font-bold flex-shrink-0">@{comment.user?.username || 'user'}</span>
-                  <span className="text-muted-foreground">{comment.content}</span>
-                </div>
+       {/* Reactions Summary & Comments Count */}
+      <div className="w-full flex items-center justify-between px-4 pb-2 text-xs text-muted-foreground border-b border-border/50">
+        <div className="flex items-center gap-1.5">
+          {uniqueEmojis.length > 0 ? (
+            <div className="flex -space-x-1 items-center">
+              {uniqueEmojis.map((emoji, idx) => (
+                <span key={idx} className="text-sm select-none animate-in zoom-in-50 duration-200" style={{ zIndex: 3 - idx }}>
+                  {emoji}
+                </span>
               ))}
-              {showAllComments && comments.length > 2 && (
-                <button
-                  className="text-xs font-medium text-muted-foreground hover:text-primary transition-colors"
-                  onClick={() => setShowAllComments(false)}
-                >
-                  {t('post_show_less')}
-                </button>
-              )}
             </div>
+          ) : (
+            <span className="text-sm select-none">👍</span>
+          )}
+          <button onClick={openReactorsModal} className="hover:underline font-medium">
+            {likesCount}
+          </button>
+        </div>
+        <button onClick={toggleCommentsSection} className="hover:underline font-medium">
+          {comments.length || post.commentsCount || 0} {t('post_comments_count') || 'Comments'}
+        </button>
+      </div>
+
+      {/* Actions */}
+      <CardFooter className="p-2 flex items-center justify-around w-full relative">
+        {/* Like Button with Reactions Popover */}
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              variant="ghost"
+              className={cn(
+                "flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold select-none cursor-pointer",
+                isLiked ? "text-primary font-bold" : "text-muted-foreground"
+              )}
+            >
+              {isLiked && selectedReact ? (
+                <span className="text-base leading-none">{selectedReact}</span>
+              ) : (
+                <ThumbsUp className="h-4 w-4" />
+              )}
+              <span>
+                {isLiked && selectedReact
+                  ? selectedReact === '❤️'
+                    ? 'Love'
+                    : selectedReact === '👍'
+                    ? 'Like'
+                    : selectedReact === '👎'
+                    ? 'Dislike'
+                    : selectedReact === '👏'
+                    ? 'Clap'
+                    : selectedReact === '😂'
+                    ? 'Laugh'
+                    : 'Wondering'
+                  : 'React'}
+              </span>
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-1.5 rounded-full flex gap-1.5 bg-background border border-border shadow-xl animate-in fade-in slide-in-from-bottom-2 z-50">
+            {['👍', '❤️', '👎', '👏', '😂', '🤔'].map((emoji) => (
+              <button
+                key={emoji}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  handleSelectReaction(emoji)
+                }}
+                className={cn(
+                  "text-2xl hover:scale-125 transition-transform p-1 select-none active:scale-95 cursor-pointer rounded-full",
+                  isLiked && selectedReact === emoji ? "bg-primary/20 scale-110" : "hover:bg-secondary/50"
+                )}
+              >
+                {emoji}
+              </button>
+            ))}
+          </PopoverContent>
+        </Popover>
+
+        {/* Comments Button */}
+        <Button
+          variant="ghost"
+          className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-muted-foreground hover:text-foreground cursor-pointer"
+          onClick={toggleCommentsSection}
+        >
+          <MessageCircle className="h-4 w-4" />
+          <span>Comments</span>
+        </Button>
+
+        {/* Share Button */}
+        <div className="relative" ref={shareMenuRef}>
+          <Button
+            variant="ghost"
+            className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-muted-foreground hover:text-foreground cursor-pointer"
+            onClick={handleShare}
+          >
+            <Share2 className="h-4 w-4" />
+            <span>Share</span>
+          </Button>
+          {showShareMenu && (
+            <div className="absolute right-0 bottom-full mb-2 z-20 bg-popover border border-border rounded-xl p-2 shadow-xl min-w-[200px] animate-in fade-in slide-in-from-bottom-2">
+              <button
+                onClick={openInternalShare}
+                className="flex items-center gap-2 w-full px-4 py-2.5 text-sm rounded-lg hover:bg-secondary transition-colors mb-1 cursor-pointer"
+              >
+                <Send className="h-4 w-4" />
+                <span className="text-xs">{t('post_share_msg')}</span>
+              </button>
+              <button
+                onClick={handleCopyLink}
+                className="flex items-center gap-2 w-full px-4 py-2.5 text-sm rounded-lg hover:bg-secondary transition-colors cursor-pointer"
+              >
+                {copied ? (
+                  <>
+                    <Check className="h-4 w-4 text-emerald-500" />
+                    <span className="text-emerald-500 font-medium text-xs">{t('post_link_copied')}</span>
+                  </>
+                ) : (
+                  <>
+                    <Link2 className="h-4 w-4" />
+                    <span className="text-xs">{t('post_copy_link')}</span>
+                  </>
+                )}
+              </button>
+              <button
+                onClick={() => setShowShareMenu(false)}
+                className="flex items-center gap-2 w-full px-4 py-1 text-xs rounded-lg hover:bg-red-50 text-red-500 transition-colors mt-1 cursor-pointer"
+              >
+                <X className="h-3 w-3" />
+                <span>{t('post_cancel')}</span>
+              </button>
+            </div>
+          )}
+        </div>
+      </CardFooter>
+
+      {/* Comments section */}
+      {showCommentsSection && (
+        <div className="px-4 pb-4 space-y-3 border-t border-border/50 pt-3">
+          {comments.length > 2 && !showAllComments && (
+            <button
+              className="text-xs font-semibold text-primary hover:underline transition-colors block text-left"
+              onClick={() => setShowAllComments(true)}
+            >
+              View all {comments.length} comments
+            </button>
+          )}
+          
+          <div className="space-y-3 max-h-60 overflow-y-auto pr-1">
+            {displayedComments.map((comment) => (
+              <div key={comment.id} className="text-sm flex gap-2 items-start">
+                <Avatar className="h-6 w-6 border border-border shrink-0">
+                  <AvatarImage src={comment.user?.avatar || undefined} />
+                  <AvatarFallback className="bg-primary/5 text-primary text-[10px] uppercase font-bold">{comment.user?.username?.[0] || '?'}</AvatarFallback>
+                </Avatar>
+                <div className="flex-1 bg-secondary/20 rounded-2xl px-3 py-1.5 min-w-0">
+                  <div className="flex items-center gap-1">
+                    <span className="font-bold text-xs truncate">@{comment.user?.username || 'user'}</span>
+                    {comment.user?.isVerified && <span className="inline-block bg-blue-500 text-white rounded-full p-0.5 text-[6px] leading-none">✓</span>}
+                  </div>
+                  <p className="text-foreground text-xs leading-relaxed mt-0.5 whitespace-pre-wrap">{comment.content}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {showAllComments && comments.length > 2 && (
+            <button
+              className="text-xs font-semibold text-primary hover:underline transition-colors block text-left"
+              onClick={() => setShowAllComments(false)}
+            >
+              Show less
+            </button>
           )}
 
           {/* Comment input functionality */}
-          {showCommentsSection && currentUser && (
+          {currentUser && (
             <div className={cn(
-              "flex items-center gap-2 w-full pt-3 mt-1",
-              !showCommentInput && "opacity-60 grayscale hover:opacity-100 hover:grayscale-0 transition-all"
+              "flex items-center gap-2 w-full pt-2 border-t border-border/30 mt-2",
+              !showCommentInput && "opacity-80 transition-all"
             )}>
-              <div className="h-8 w-8 rounded-full overflow-hidden border border-border flex-shrink-0">
-                 <Avatar className="h-full w-full">
-                    <AvatarImage src={currentUser?.avatar || undefined} />
-                    <AvatarFallback>{currentUser?.username?.[0] || 'U'}</AvatarFallback>
-                 </Avatar>
-              </div>
-              <div className="relative flex-1">
+              <Avatar className="h-7 w-7 border border-border flex-shrink-0">
+                <AvatarImage src={currentUser?.avatar || undefined} />
+                <AvatarFallback className="bg-primary/5 text-primary text-[10px] uppercase font-bold">{currentUser?.username?.[0] || 'U'}</AvatarFallback>
+              </Avatar>
+              <div className="relative flex-1 bg-secondary/10 hover:bg-secondary/20 focus-within:bg-secondary/20 focus-within:ring-1 focus-within:ring-primary/20 rounded-2xl px-3 py-1.5 flex items-center transition-all">
                 <input
                   ref={commentInputRef}
                   type="text"
-                  placeholder={t('post_share_thoughts')}
+                  placeholder="Add a comment..."
                   value={commentText}
                   onChange={(e) => setCommentText(e.target.value)}
                   onKeyDown={handleCommentKeyDown}
-                  className="w-full text-sm bg-transparent outline-none py-1.5 pr-8"
+                  className="w-full text-xs bg-transparent outline-none pr-8 text-foreground placeholder:text-muted-foreground"
                   onFocus={() => setShowCommentInput(true)}
                 />
                 
                 <button
                   type="button"
                   onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                  className="absolute right-0 top-1 text-lg hover:scale-110 transition-transform"
+                  className="absolute right-3 text-sm hover:scale-110 transition-transform cursor-pointer"
                 >
                   😊
                 </button>
 
                 {showEmojiPicker && (
-                  <div className="absolute bottom-full right-0 mb-2 z-50 shadow-xl border border-border/50 rounded-lg">
+                  <div className="absolute bottom-full right-0 mb-2 z-50 shadow-2xl border border-border/50 rounded-2xl overflow-hidden bg-background">
                     <EmojiPicker
                       onEmojiClick={(emojiData: any) => {
                         setCommentText(prev => prev + emojiData.emoji)
                         setShowEmojiPicker(false)
                       }}
+                      width={300}
+                      height={350}
                     />
                   </div>
                 )}
               </div>
-              {showCommentInput && commentText.trim() && (
+              {commentText.trim() && (
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={handleAddComment}
-                  className="text-primary font-bold hover:bg-primary/10"
+                  className="text-primary font-bold hover:bg-primary/10 rounded-full h-8 px-3 text-xs"
                 >
-                  {t('post_btn_post')}
+                  Post
                 </Button>
               )}
             </div>
           )}
         </div>
-      </CardFooter>
+      )}
 
       {/* Internal Share Dialog */}
       <Dialog open={internalShareOpen} onOpenChange={setInternalShareOpen}>

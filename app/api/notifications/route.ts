@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
              u.avatar_url as from_user_avatar
       FROM notifications n
       LEFT JOIN users u ON n.from_user_id = u.id
-      WHERE n.user_id = $1
+      WHERE n.user_id = $1 AND n.created_at <= NOW()
       ORDER BY n.created_at DESC
       LIMIT 50
     `, [userId])

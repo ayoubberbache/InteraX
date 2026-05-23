@@ -237,6 +237,10 @@ export const translations = {
     set_theme_light: 'Light',
     set_theme_dark: 'Dark',
     set_theme_system: 'System',
+    set_color_palette: 'Color Theme',
+    palette_lavender_violet: 'Lavender / Violet',
+    palette_oat_olive: 'Oat & Olive',
+    set_theme_mode: 'Theme Mode',
 
     // Settings Toasts & Modal
     set_avatar_success: 'Avatar updated successfully',
@@ -287,6 +291,7 @@ export const translations = {
     post_share_chat_title: 'Share to Chat',
     post_share_send: 'Send',
     post_no_convos: 'No following accounts found.',
+    post_comments_count: 'Comments',
   },
   fr: {
     // Sidebar & Nav
@@ -524,6 +529,10 @@ export const translations = {
     set_theme_light: 'Clair',
     set_theme_dark: 'Sombre',
     set_theme_system: 'Système',
+    set_color_palette: 'Thème de couleur',
+    palette_lavender_violet: 'Lavande / Violet',
+    palette_oat_olive: 'Avoine & Olive',
+    set_theme_mode: 'Mode de thème',
 
     // Settings Toasts & Modal
     set_avatar_success: 'Avatar mis à jour avec succès',
@@ -574,6 +583,7 @@ export const translations = {
     post_share_chat_title: 'Partager dans le chat',
     post_share_send: 'Envoyer',
     post_no_convos: 'Aucun compte suivi trouvé.',
+    post_comments_count: 'Commentaires',
   },
   ar: {
     // Sidebar & Nav
@@ -811,6 +821,10 @@ export const translations = {
     set_theme_light: 'فاتح',
     set_theme_dark: 'داكن',
     set_theme_system: 'النظام',
+    set_color_palette: 'سمة الألوان',
+    palette_lavender_violet: 'لافندر / بنفسجي',
+    palette_oat_olive: 'شوفان وزيتون',
+    set_theme_mode: 'وضع السمة',
 
     // Settings Toasts & Modal
     set_avatar_success: 'تم تحديث الصورة الرمزية بنجاح',
@@ -861,6 +875,7 @@ export const translations = {
     post_share_chat_title: 'مشاركة في محادثة',
     post_share_send: 'إرسال',
     post_no_convos: 'لم يتم العثور على حسابات تتابعها.',
+    post_comments_count: 'التعليقات',
   }
 }
 

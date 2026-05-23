@@ -22,6 +22,9 @@ html {
   --background: #F8F5FF;
   --foreground: #1a0030;
   --card: #ffffff;
+  --logo-grad-start: #4B0082;
+  --logo-grad-mid: #9370DB;
+  --logo-grad-end: #C084FC;
   --card-foreground: #1a0030;
   --popover: #ffffff;
   --popover-foreground: #1a0030;
@@ -52,12 +55,18 @@ html {
   --sidebar-accent-foreground: #4B0082;
   --sidebar-border: #d8cff0;
   --sidebar-ring: #4B0082;
+  --brand-gradient: linear-gradient(to right, #4B0082, #9370DB, #C084FC);
+  --bot-avatar-bg: linear-gradient(135deg, rgba(75, 0, 130, 0.1), rgba(147, 112, 219, 0.2));
+  --bot-avatar-border: rgba(147, 112, 219, 0.25);
 }
 
 .dark {
   --background: #0d0018;
   --foreground: #f0ebff;
   --card: #130026;
+  --logo-grad-start: #E6E6FA;
+  --logo-grad-mid: #C084FC;
+  --logo-grad-end: #9370DB;
   --card-foreground: #f0ebff;
   --popover: #130026;
   --popover-foreground: #f0ebff;
@@ -87,6 +96,113 @@ html {
   --sidebar-accent-foreground: #E6E6FA;
   --sidebar-border: #2d1b4e;
   --sidebar-ring: #9370DB;
+  --brand-gradient: linear-gradient(to right, #E6E6FA, #C084FC, #9370DB);
+  --bot-avatar-bg: linear-gradient(135deg, rgba(230, 230, 250, 0.15), rgba(192, 132, 252, 0.25));
+  --bot-avatar-border: rgba(192, 132, 252, 0.3);
+}
+
+/* ── Oat & Olive Palette — Light Mode ── */
+[data-palette="oat-olive"] {
+  --background: #F0E6DA;
+  --foreground: #415B06;
+  --card: #FAF6F0;
+  --logo-grad-start: #2D3F04;
+  --logo-grad-mid: #415B06;
+  --logo-grad-end: #6C862F;
+  --card-foreground: #415B06;
+  --popover: #FAF6F0;
+  --popover-foreground: #415B06;
+  --primary: #415B06;
+  --primary-foreground: #F0E6DA;
+  --secondary: #E3D9CD;
+  --secondary-foreground: #415B06;
+  --muted: #EADFD3;
+  --muted-foreground: #70685E;
+  --accent: #E3D9CD;
+  --accent-foreground: #415B06;
+  --destructive: #9A2211;
+  --destructive-foreground: #ffffff;
+  --border: #D1C2B0;
+  --input: #D1C2B0;
+  --ring: #415B06;
+  --chart-1: #415B06;
+  --chart-2: #6C862F;
+  --chart-3: #E3D9CD;
+  --chart-4: #8FAB2E;
+  --chart-5: #B5C95A;
+  --sidebar: #FAF6F0;
+  --sidebar-foreground: #415B06;
+  --sidebar-primary: #415B06;
+  --sidebar-primary-foreground: #F0E6DA;
+  --sidebar-accent: #E3D9CD;
+  --sidebar-accent-foreground: #415B06;
+  --sidebar-border: #D1C2B0;
+  --sidebar-ring: #415B06;
+  --brand-gradient: linear-gradient(to right, #2D3F04, #415B06, #6C862F);
+  --bot-avatar-bg: linear-gradient(135deg, rgba(45, 63, 4, 0.1), rgba(108, 134, 47, 0.2));
+  --bot-avatar-border: rgba(108, 134, 47, 0.25);
+}
+
+[data-palette="oat-olive"] a {
+  color: #415B06;
+}
+
+[data-palette="oat-olive"] a:hover {
+  color: #5d7e0c;
+}
+
+/* ── Oat & Olive Palette — Dark Mode ── */
+[data-palette="oat-olive"].dark {
+  --background: #111A04;
+  --foreground: #E2ECC8;
+  --card: #182208;
+  --logo-grad-start: #8FAB2E;
+  --logo-grad-mid: #B5C95A;
+  --logo-grad-end: #D4E07A;
+  --card-foreground: #E2ECC8;
+  --popover: #182208;
+  --popover-foreground: #E2ECC8;
+  --primary: #8FAB2E;
+  --primary-foreground: #111A04;
+  --secondary: #243010;
+  --secondary-foreground: #C5D48A;
+  --muted: #1C2A09;
+  --muted-foreground: #8A9A60;
+  --accent: #2D3F14;
+  --accent-foreground: #C5D48A;
+  --destructive: #C0392B;
+  --destructive-foreground: #ffffff;
+  --border: #2D3F14;
+  --input: #2D3F14;
+  --ring: #8FAB2E;
+  --chart-1: #8FAB2E;
+  --chart-2: #C5D48A;
+  --chart-3: #415B06;
+  --chart-4: #B5C95A;
+  --chart-5: #6C862F;
+  --sidebar: #111A04;
+  --sidebar-foreground: #E2ECC8;
+  --sidebar-primary: #8FAB2E;
+  --sidebar-primary-foreground: #111A04;
+  --sidebar-accent: #243010;
+  --sidebar-accent-foreground: #C5D48A;
+  --sidebar-border: #2D3F14;
+  --sidebar-ring: #8FAB2E;
+  --brand-gradient: linear-gradient(to right, #8FAB2E, #B5C95A, #D4E07A);
+  --bot-avatar-bg: linear-gradient(135deg, rgba(143, 171, 46, 0.15), rgba(181, 201, 90, 0.25));
+  --bot-avatar-border: rgba(181, 201, 90, 0.3);
+}
+
+[data-palette="oat-olive"].dark a {
+  color: #B5C95A;
+}
+
+[data-palette="oat-olive"].dark a:hover {
+  color: #D4E07A;
+}
+
+[data-palette="oat-olive"].dark label {
+  color: #8A9A60;
 }
 
 @theme inline {
@@ -290,3 +406,16 @@ html {
   -ms-overflow-style: none;  /* IE and Edge */
   scrollbar-width: none;  /* Firefox */
 }
+
+/* Theme-aware brand gradient background helper */
+.bg-brand-gradient {
+  background-image: var(--brand-gradient) !important;
+}
+
+/* Theme-aware Chatbot avatar profile background & border */
+.bot-avatar-pfp {
+  background: var(--bot-avatar-bg) !important;
+  border: 1px solid var(--bot-avatar-border) !important;
+}
+
+

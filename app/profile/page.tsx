@@ -14,6 +14,7 @@ import { PostCard } from '@/frontend/components/feed/post-card'
 import { toast } from 'sonner'
 import { useLanguage } from '@/backend/lib/i18n/context'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/frontend/components/ui/dialog'
+import { uploadMedia } from '@/backend/lib/upload'
 
 export default function ProfilePage() {
   const { currentUser, isLoggedIn, refreshUser } = useAuth()
@@ -92,6 +93,25 @@ export default function ProfilePage() {
     }
   }
 
+  const handleCoverUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file || !currentUser) return
+    try {
+      const url = await uploadMedia(file, currentUser.id, 'cover')
+      const patchRes = await fetch('/api/users', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: currentUser.id, cover_url: url })
+      })
+      if (!patchRes.ok) throw new Error('Failed to update cover url')
+      toast.success('Cover image updated successfully')
+      refreshUser()
+    } catch (err) {
+      console.error(err)
+      toast.error('Failed to upload cover image')
+    }
+  }
+
   useEffect(() => {
     if (activeTab === 'saved' && currentUser) {
       fetch(`/api/posts?userId=${currentUser.id}&savedOnly=true`)
@@ -166,18 +186,48 @@ export default function ProfilePage() {
       <div className="max-w-4xl mx-auto p-4 md:p-6">
         {/* Cover Image Wrapper */}
         <div className="relative mb-16 md:mb-20">
-          {/* Cover Background (Hidden Overflow) */}
-          <div className="h-36 md:h-48 w-full rounded-2xl overflow-hidden bg-gradient-to-r from-[#4B0082]/20 via-[#E6E6FA]/20 to-[#6366f1]/20">
+          {/* Cover Background */}
+          <div
+            className="h-36 md:h-48 w-full rounded-2xl overflow-hidden relative group cursor-pointer"
+            style={{
+              background: currentUser.coverUrl
+                ? undefined
+                : 'linear-gradient(135deg, var(--primary) 0%, var(--secondary) 50%, var(--accent) 100%)',
+            }}
+            onClick={() => document.getElementById('cover-upload-input')?.click()}
+          >
             {currentUser.coverUrl && (
-              <img src={currentUser.coverUrl} alt="Cover" className="w-full h-full object-cover" />
+              <img
+                src={currentUser.coverUrl}
+                alt="Cover"
+                className="w-full h-full object-cover"
+              />
             )}
+            {/* Overlay on hover */}
+            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all duration-200 flex items-center justify-center rounded-2xl">
+              <div className="opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center gap-2">
+                <div className="bg-white/90 backdrop-blur-sm rounded-full p-3 shadow-lg">
+                  <Camera className="h-5 w-5 text-gray-800" />
+                </div>
+                <span className="text-white text-xs font-semibold drop-shadow bg-black/40 px-3 py-1 rounded-full">
+                  {currentUser.coverUrl ? 'Change cover photo' : 'Add cover photo'}
+                </span>
+              </div>
+            </div>
+            <input
+              id="cover-upload-input"
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleCoverUpload}
+            />
           </div>
           {/* Avatar overlapping the cover container */}
           <div className="absolute -bottom-12 left-6 z-10">
             <div className="relative rounded-full shadow-2xl before:absolute before:-inset-1 before:rounded-full before:bg-background/30 before:backdrop-blur-md before:-z-10">
               <Avatar className="h-24 w-24 border-4 border-background bg-background/80 backdrop-blur-sm">
                 <AvatarImage src={currentUser.avatar || undefined} alt={currentUser.name} className="object-cover" />
-                <AvatarFallback className="text-2xl bg-gradient-to-br from-[#4B0082] to-[#E6E6FA] text-white">
+                <AvatarFallback className="text-2xl bg-gradient-to-br from-primary to-secondary-foreground text-primary-foreground">
                   {currentUser.name[0]}
                 </AvatarFallback>
               </Avatar>

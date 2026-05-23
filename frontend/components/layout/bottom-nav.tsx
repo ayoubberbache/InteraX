@@ -63,8 +63,8 @@ export function BottomNav() {
               <span className="absolute top-0 left-1/2 -translate-x-1/2 w-6 h-0.5 rounded-full bg-primary" />
             )}
             {isCreate ? (
-              <div className="h-11 w-11 rounded-2xl bg-gradient-to-br from-[#4B0082] to-[#9370DB] flex items-center justify-center shadow-lg shadow-primary/30 transition-transform active:scale-95">
-                <Icon className="h-5 w-5 text-white" />
+              <div className="h-11 w-11 rounded-2xl bg-brand-gradient flex items-center justify-center shadow-lg shadow-primary/30 transition-transform active:scale-95 text-primary-foreground">
+                <Icon className="h-5 w-5" />
               </div>
             ) : (
               <>

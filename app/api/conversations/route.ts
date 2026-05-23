@@ -99,3 +99,45 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ error: err.message }, { status: 500 })
   }
 }
+
+export async function PATCH(req: NextRequest) {
+  try {
+    const body = await req.json()
+    const { id, groupAvatar, groupName } = body
+
+    if (!id || !isValidUuid(id)) {
+      return NextResponse.json({ error: 'Invalid conversation ID' }, { status: 400 })
+    }
+
+    const updates: string[] = []
+    const values: any[] = []
+    let paramIndex = 1
+
+    if (groupAvatar !== undefined) {
+      updates.push(`group_avatar = $${paramIndex++}`)
+      values.push(groupAvatar)
+    }
+
+    if (groupName !== undefined) {
+      updates.push(`group_name = $${paramIndex++}`)
+      values.push(groupName)
+    }
+
+    if (updates.length === 0) {
+      return NextResponse.json({ error: 'No fields to update' }, { status: 400 })
+    }
+
+    values.push(id)
+    const updated = await queryOne(`
+      UPDATE conversations
+      SET ${updates.join(', ')}
+      WHERE id = $${paramIndex}
+      RETURNING *
+    `, values)
+
+    return NextResponse.json(updated)
+  } catch (err: any) {
+    console.error('[conversations PATCH]', err)
+    return NextResponse.json({ error: err.message }, { status: 500 })
+  }
+}

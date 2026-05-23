@@ -4,7 +4,6 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Bell, MessageCircle, Search, Plus, Command } from 'lucide-react'
 import { Button } from '@/frontend/components/ui/button'
-import { ThemeToggle } from '@/frontend/components/theme/theme-toggle'
 import { useAuth } from '@/backend/lib/auth-context'
 import { Avatar, AvatarFallback, AvatarImage } from '@/frontend/components/ui/avatar'
 import { InteraXLogo } from '@/frontend/components/ui/logo'
@@ -53,7 +52,7 @@ export function Header() {
         <div className="flex-shrink-0 flex items-center md:w-64">
           <Link href="/" className="flex items-center gap-2.5 group">
             <InteraXLogo className="h-9 w-auto transition-transform duration-300 group-hover:scale-110" />
-            <span className="hidden sm:block font-black bg-gradient-to-r from-[#4B0082] via-[#9370DB] to-[#E6E6FA] bg-clip-text text-transparent text-xl tracking-tight">
+            <span className="hidden sm:block font-black text-xl tracking-tight bg-clip-text text-transparent" style={{ backgroundImage: 'var(--brand-gradient)' }}>
               InteraX
             </span>
           </Link>
@@ -86,7 +85,7 @@ export function Header() {
               {/* Create CTA - hidden on mobile (use bottom nav instead) */}
               <Button
                 asChild
-                className="hidden md:flex h-9 px-4 rounded-xl bg-gradient-to-r from-[#4B0082] to-[#9370DB] text-white border-0 shadow-md hover:shadow-primary/25 hover:scale-105 transition-all text-sm font-semibold me-1"
+                className="hidden md:flex h-9 px-4 rounded-xl bg-brand-gradient text-primary-foreground border-0 shadow-md hover:shadow-primary/25 hover:scale-105 transition-all text-sm font-semibold me-1 cursor-pointer"
               >
                 <Link href="/create">
                   <Plus className="h-4 w-4 me-1.5" />
@@ -106,11 +105,8 @@ export function Header() {
                 </Link>
               </Button>
 
-
             </>
           )}
-          
-          <ThemeToggle />
           
           {isLoggedIn && currentUser ? (
             <Link href="/profile" className="ms-1">
@@ -126,7 +122,7 @@ export function Header() {
               <Button variant="outline" size="sm" className="h-9 rounded-xl" asChild>
                 <Link href="/login">{t('nav_sign_in')}</Link>
               </Button>
-              <Button size="sm" className="h-9 rounded-xl bg-gradient-to-r from-[#4B0082] to-[#9370DB] text-white border-0" asChild>
+              <Button size="sm" className="h-9 rounded-xl bg-brand-gradient text-primary-foreground border-0 cursor-pointer" asChild>
                 <Link href="/signup">{t('auth_signup_btn')}</Link>
               </Button>
             </div>

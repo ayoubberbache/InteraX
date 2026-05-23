@@ -1,41 +1,25 @@
 'use client'
 
-import { useTheme } from 'next-themes'
-import { useEffect, useState } from 'react'
+import { useId } from 'react'
 
 export function InteraXLogo({ className = '', color }: { className?: string, color?: string }) {
-  const { resolvedTheme } = useTheme()
-  const [mounted, setMounted] = useState(false)
-
-  useEffect(() => {
-    setMounted(true)
-  }, [])
-
-  const isDark = mounted && resolvedTheme === 'dark'
-
-  // Light mode: deep indigo → medium purple → lavender (brand 60/30/10)
-  // Dark mode: inverse — start bright lavender, through violet, end deep indigo
-  const gradientId = isDark ? 'interax-grad-dark' : 'interax-grad-light'
+  const uniqueId = useId()
+  const gradientId = `interax-logo-gradient-${uniqueId.replace(/:/g, '')}`
 
   return (
     <svg
       viewBox="200 110 280 280"
+      width="280"
+      height="280"
       xmlns="http://www.w3.org/2000/svg"
       className={className}
     >
       <defs>
-        {/* Light mode: indigo → purple → lavender */}
-        <linearGradient id="interax-grad-light" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%"   stopColor="#4B0082" />
-          <stop offset="50%"  stopColor="#9370DB" />
-          <stop offset="100%" stopColor="#C084FC" />
-        </linearGradient>
-
-        {/* Dark mode: lavender → violet → bright purple (glows on dark bg) */}
-        <linearGradient id="interax-grad-dark" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%"   stopColor="#E6E6FA" />
-          <stop offset="50%"  stopColor="#C084FC" />
-          <stop offset="100%" stopColor="#9370DB" />
+        {/* Dynamic theme-aware logo gradient driven entirely by CSS variables, unique per instance */}
+        <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%"   stopColor="var(--logo-grad-start)" />
+          <stop offset="50%"  stopColor="var(--logo-grad-mid)" />
+          <stop offset="100%" stopColor="var(--logo-grad-end)" />
         </linearGradient>
       </defs>
 

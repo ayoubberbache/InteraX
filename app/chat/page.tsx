@@ -17,7 +17,8 @@ import {
   ChevronLeft,
   Plus,
   X,
-  Share2
+  Share2,
+  Camera
 } from 'lucide-react'
 import { InteraXLogo } from '@/frontend/components/ui/logo'
 import { MainLayout } from '@/frontend/components/layout/main-layout'
@@ -68,6 +69,9 @@ interface DbConversation {
   last_message: string | null
   last_message_time: string | null
   created_at: string
+  is_group?: boolean
+  group_name?: string | null
+  group_avatar?: string | null
   // Virtual expanded fields
   other_user?: {
     id: string
@@ -161,7 +165,7 @@ function ChatPageContent() {
   const addRecentEmoji = (emoji: string) => {
     setRecentEmojis(prev => {
       const filtered = prev.filter(e => e !== emoji)
-      const updated = [emoji, ...filtered].slice(0, 6)
+      const updated = [emoji, ...filtered].slice(0, 7)
       if (typeof window !== 'undefined') {
         localStorage.setItem('interax_recent_emojis', JSON.stringify(updated))
       }
@@ -173,12 +177,65 @@ function ChatPageContent() {
   const [selectedGroupUsers, setSelectedGroupUsers] = useState<any[]>([])
   const [groupName, setGroupName] = useState('')
   const [groupAvatar, setGroupAvatar] = useState('')
+  const [isUploadingGroupAvatar, setIsUploadingGroupAvatar] = useState(false)
 
   // Reply & Forward states
   const [replyingToMsg, setReplyingToMsg] = useState<DbMessage | null>(null)
   const [forwardingMsg, setForwardingMsg] = useState<DbMessage | null>(null)
   const [isForwardOpen, setIsForwardOpen] = useState(false)
   const [activeReactionPickerId, setActiveReactionPickerId] = useState<string | null>(null)
+
+  // Group Details Modal State
+  const [isGroupDetailsOpen, setIsGroupDetailsOpen] = useState(false)
+  const [groupMembers, setGroupMembers] = useState<any[]>([])
+  const [isLoadingMembers, setIsLoadingMembers] = useState(false)
+  const [isChangingGroupPhoto, setIsChangingGroupPhoto] = useState(false)
+
+  const fetchGroupMembers = async (participantIds: string[]) => {
+    setIsLoadingMembers(true)
+    try {
+      const fetchedUsers = await Promise.all(
+        participantIds.map(async (id) => {
+          const res = await fetch(`/api/users?id=${id}`)
+          if (res.ok) {
+            const { data } = await res.json()
+            return data
+          }
+          return null
+        })
+      )
+      setGroupMembers(fetchedUsers.filter(Boolean))
+    } catch (err) {
+      console.error('Error fetching group members:', err)
+      toast.error('Failed to load group members')
+    } finally {
+      setIsLoadingMembers(false)
+    }
+  }
+
+  const handleGroupPhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file || !selectedConversation || !currentUser) return
+    setIsChangingGroupPhoto(true)
+    try {
+      const url = await uploadMedia(file, currentUser.id, 'group')
+      const patchRes = await fetch('/api/conversations', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: selectedConversation.id, groupAvatar: url })
+      })
+      if (!patchRes.ok) throw new Error('Failed to update group picture')
+      
+      setSelectedConversation(prev => prev ? { ...prev, group_avatar: url } : null)
+      setConversations(prev => prev.map(c => c.id === selectedConversation.id ? { ...c, group_avatar: url } : c))
+      toast.success("Group picture updated successfully!")
+    } catch (err) {
+      console.error(err)
+      toast.error("Failed to update group picture")
+    } finally {
+      setIsChangingGroupPhoto(false)
+    }
+  }
 
   // Redirect if not logged in
   useEffect(() => {
@@ -596,24 +653,33 @@ function ChatPageContent() {
   }
 
   const startNewConversation = async (targetUser?: any) => {
-    setIsNewChatOpen(false)
     try {
       let payload;
       if (targetUser) {
         payload = { targetUserId: targetUser.id, userId: currentUser.id }
-      } else if (selectedGroupUsers.length === 1 && !groupName.trim()) {
-        // Start a 1-on-1 chat if only 1 user is selected and no group name is provided
+      } else if (selectedGroupUsers.length === 1 && !groupName.trim() && !groupAvatar) {
+        // Start a 1-on-1 chat if only 1 user is selected and no group details are provided
         targetUser = selectedGroupUsers[0];
         payload = { targetUserId: targetUser.id, userId: currentUser.id }
       } else {
+        // It's a group chat!
+        if (!groupName.trim()) {
+          toast.error("Group name is required to create a group chat!");
+          return;
+        }
+        if (!groupAvatar) {
+          toast.error("Group picture is required to create a group chat!");
+          return;
+        }
         payload = { 
           participantIds: [...selectedGroupUsers.map(u => u.id), currentUser.id], 
-          groupName: groupName.trim() || t('chat_title'), 
-          groupAvatar: groupAvatar || null,
+          groupName: groupName.trim(), 
+          groupAvatar: groupAvatar,
           userId: currentUser.id 
         }
       }
 
+      setIsNewChatOpen(false)
       const res = await fetch('/api/conversations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -791,6 +857,9 @@ Tell users you can help them navigate the platform.`
   }
 
   const filteredConversations = conversations.filter((conv) => {
+    if (conv.is_group) {
+      return conv.group_name?.toLowerCase().includes(searchQuery.toLowerCase())
+    }
     if (!conv.other_user) return true
     return (
       conv.other_user.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -883,24 +952,31 @@ Tell users you can help them navigate the platform.`
                               type="file"
                               accept="image/*"
                               className="hidden"
-                              onChange={(e) => {
+                              onChange={async (e) => {
                                 const file = e.target.files?.[0]
                                 if (file) {
-                                  const reader = new FileReader()
-                                  reader.onload = (ev) => setGroupAvatar(ev.target?.result as string)
-                                  reader.readAsDataURL(file)
+                                  setIsUploadingGroupAvatar(true)
+                                  try {
+                                    const url = await uploadMedia(file, currentUser?.id, 'group')
+                                    setGroupAvatar(url)
+                                    toast.success("Group picture uploaded!")
+                                  } catch (err) {
+                                    toast.error("Failed to upload group picture")
+                                  } finally {
+                                    setIsUploadingGroupAvatar(false)
+                                  }
                                 }
                               }}
                             />
-                            <Avatar className="h-12 w-12 border border-border bg-secondary/50 hover:bg-secondary transition-colors">
+                            <Avatar className={cn("h-12 w-12 border border-border bg-secondary/50 hover:bg-secondary transition-colors", isUploadingGroupAvatar && "animate-pulse")}>
                               <AvatarImage src={groupAvatar || undefined} />
                               <AvatarFallback><ImageIcon className="h-5 w-5 text-muted-foreground" /></AvatarFallback>
                             </Avatar>
                           </label>
                           <Input className="flex-1" placeholder={t('chat_group_name')} value={groupName} onChange={e => setGroupName(e.target.value)} />
                         </div>
-                        <Button className="w-full" onClick={() => startNewConversation()}>
-                          {(selectedGroupUsers.length > 1 || groupName.trim()) ? `${t('chat_create_group')} (${selectedGroupUsers.length})` : t('chat_start_chat')}
+                        <Button className="w-full cursor-pointer" onClick={() => startNewConversation()} disabled={isUploadingGroupAvatar}>
+                          {isUploadingGroupAvatar ? "Uploading group avatar..." : (selectedGroupUsers.length > 1 || groupName.trim()) ? `${t('chat_create_group')} (${selectedGroupUsers.length})` : t('chat_start_chat')}
                         </Button>
                       </div>
                     )}
@@ -932,10 +1008,10 @@ Tell users you can help them navigate the platform.`
                 className={cn('w-full flex items-center gap-3 p-4 hover:bg-secondary/50 border-b border-border/50 text-left', isBotSelected && 'bg-secondary')}
               >
                 <div className="relative">
-                  <div className="h-14 w-14 rounded-full flex items-center justify-center overflow-hidden">
-                    <InteraXLogo className="w-full h-full object-contain" color="#000000" />
+                  <div className="h-12 w-12 rounded-2xl bot-avatar-pfp flex items-center justify-center overflow-hidden shadow-inner p-2">
+                    <InteraXLogo className="w-full h-full" />
                   </div>
-                  <div className="absolute bottom-1 right-1 h-3 w-3 rounded-full bg-emerald-500 border-2 border-background" />
+                  <div className="absolute -bottom-0.5 right-1 h-3 w-3 rounded-full bg-emerald-500 border-2 border-background" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold text-sm">{t('chat_bot_name')}</p>
@@ -954,12 +1030,14 @@ Tell users you can help them navigate the platform.`
                   className={cn('w-full flex items-center gap-3 p-4 hover:bg-secondary/50 border-b border-border/50 text-left transition-colors', selectedConversation?.id === conv.id && 'bg-secondary')}
                 >
                   <Avatar className="h-12 w-12">
-                    <AvatarImage src={conv.other_user?.avatar_url || undefined} />
-                    <AvatarFallback>{conv.other_user?.full_name?.[0] || '?'}</AvatarFallback>
+                    <AvatarImage src={conv.is_group ? (conv.group_avatar || undefined) : (conv.other_user?.avatar_url || undefined)} />
+                    <AvatarFallback>{conv.is_group ? (conv.group_name?.[0] || 'G') : (conv.other_user?.full_name?.[0] || '?')}</AvatarFallback>
                   </Avatar>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between mb-0.5">
-                      <p className="font-semibold text-sm truncate">{conv.other_user?.full_name}</p>
+                      <p className="font-semibold text-sm truncate">
+                        {conv.is_group ? conv.group_name : conv.other_user?.full_name}
+                      </p>
                       {conv.last_message_time && (
                         <span className="text-[10px] text-muted-foreground">
                           {formatDistanceToNow(new Date(conv.last_message_time))}
@@ -990,8 +1068,8 @@ Tell users you can help them navigate the platform.`
                     </Button>
                     {isBotSelected ? (
                       <>
-                        <div className="h-8 w-8 md:h-10 md:w-10 flex items-center justify-center shrink-0">
-                          <InteraXLogo className="h-full w-full object-contain" color="#000000" />
+                        <div className="h-8 w-8 md:h-10 md:w-10 rounded-xl bot-avatar-pfp flex items-center justify-center shrink-0 p-1.5 shadow-sm">
+                          <InteraXLogo className="h-full w-full" />
                         </div>
                         <div className="min-w-0">
                           <p className="font-semibold text-xs md:text-sm truncate leading-tight">{t('chat_bot_name')}</p>
@@ -999,16 +1077,28 @@ Tell users you can help them navigate the platform.`
                         </div>
                       </>
                     ) : (
-                      <>
+                      <div 
+                        className={cn("flex items-center gap-1.5 md:gap-3 min-w-0", selectedConversation?.is_group && "cursor-pointer hover:opacity-80 transition-opacity")}
+                        onClick={() => {
+                          if (selectedConversation?.is_group) {
+                            setIsGroupDetailsOpen(true)
+                            fetchGroupMembers(selectedConversation.participant_ids)
+                          }
+                        }}
+                      >
                         <Avatar className="h-8 w-8 md:h-9 md:w-9 shrink-0">
-                          <AvatarImage src={selectedConversation?.other_user?.avatar_url || undefined} />
-                          <AvatarFallback>{selectedConversation?.other_user?.full_name?.[0]}</AvatarFallback>
+                          <AvatarImage src={selectedConversation?.is_group ? (selectedConversation?.group_avatar || undefined) : (selectedConversation?.other_user?.avatar_url || undefined)} />
+                          <AvatarFallback>{selectedConversation?.is_group ? (selectedConversation?.group_name?.[0] || 'G') : (selectedConversation?.other_user?.full_name?.[0])}</AvatarFallback>
                         </Avatar>
                         <div className="min-w-0">
-                          <p className="font-semibold text-xs md:text-sm truncate leading-tight">{selectedConversation?.other_user?.full_name}</p>
-                          <p className="text-[9px] md:text-[10px] text-muted-foreground truncate">@{selectedConversation?.other_user?.username}</p>
+                          <p className="font-semibold text-xs md:text-sm truncate leading-tight">
+                            {selectedConversation?.is_group ? selectedConversation?.group_name : selectedConversation?.other_user?.full_name}
+                          </p>
+                          <p className="text-[9px] md:text-[10px] text-muted-foreground truncate">
+                            {selectedConversation?.is_group ? `${selectedConversation?.participant_ids.length} members` : `@${selectedConversation?.other_user?.username}`}
+                          </p>
                         </div>
-                      </>
+                      </div>
                     )}
                   </div>
 
@@ -1033,6 +1123,17 @@ Tell users you can help them navigate the platform.`
                           <Button variant="ghost" size="icon" className="h-8 w-8 md:h-9 md:w-9 rounded-full"><MoreVertical className="h-4.5 w-4.5 md:h-5 md:w-5" /></Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-48">
+                          {selectedConversation?.is_group && (
+                            <DropdownMenuItem 
+                              className="cursor-pointer font-semibold text-foreground" 
+                              onClick={() => {
+                                setIsGroupDetailsOpen(true)
+                                fetchGroupMembers(selectedConversation.participant_ids)
+                              }}
+                            >
+                              Group Info / Members
+                            </DropdownMenuItem>
+                          )}
                           <DropdownMenuItem className="text-destructive font-medium cursor-pointer focus:bg-destructive/10 focus:text-destructive" onClick={handleDeleteChat}>
                             {t('chat_delete_conv')}
                           </DropdownMenuItem>
@@ -1054,11 +1155,11 @@ Tell users you can help them navigate the platform.`
                           <div className={cn(
                             'max-w-[80%] rounded-2xl px-2.5 py-1.5 md:px-4 md:py-2 text-[11.5px] md:text-sm shadow-sm transition-all',
                             m.role === 'user' 
-                              ? 'bg-gradient-to-r from-[#4B0082] to-[#E6E6FA] text-white rounded-tr-none' 
-                              : 'bg-background border border-border rounded-tl-none'
+                              ? 'bg-brand-gradient text-primary-foreground rounded-tr-none' 
+                              : 'bg-background border border-border rounded-tl-none text-foreground'
                           )}>
-                            <p className="whitespace-pre-wrap leading-relaxed text-[11.5px] md:text-sm">{m.content}</p>
-                            <p className={cn('text-[9px] md:text-[10px] mt-1 opacity-70', m.role === 'user' ? 'text-right' : 'text-left')}>
+                            <p className="whitespace-pre-wrap leading-relaxed text-[11.5px] md:text-sm text-inherit">{m.content}</p>
+                            <p className={cn('text-[9px] md:text-[10px] mt-1 opacity-75 text-inherit', m.role === 'user' ? 'text-right' : 'text-left')}>
                               {formatTimeAgo(m.timestamp)}
                             </p>
                           </div>
@@ -1077,9 +1178,9 @@ Tell users you can help them navigate the platform.`
                                   'group relative max-w-[80%] md:max-w-[75%] transition-all cursor-pointer select-none active:scale-[0.99] outline-none',
                                   isEmojiOnly 
                                     ? 'text-[40px] md:text-[64px] leading-none drop-shadow-xl animate-in zoom-in spin-in-2' 
-                                    : cn('px-2.5 py-1.5 md:px-3 md:py-2 text-[11px] md:text-[13px] shadow-sm', isOwn 
-                                      ? 'bg-gradient-to-r from-[#4B0082] to-[#6366f1] text-white rounded-2xl rounded-tr-none' 
-                                      : 'bg-background border border-border rounded-2xl rounded-tl-none text-foreground'
+                                    : cn('px-2.5 py-1.5 md:px-3 md:py-2 text-[11px] md:text-[13px] shadow-sm rounded-2xl', isOwn 
+                                      ? 'bg-brand-gradient text-primary-foreground rounded-tr-none' 
+                                      : 'bg-background border border-border rounded-tl-none text-foreground'
                                     )
                                 )}>
                                   {editingMsg === m.id ? (
@@ -1097,6 +1198,11 @@ Tell users you can help them navigate the platform.`
                                     />
                                   ) : (
                                     <div className="space-y-1.5">
+                                      {!isOwn && selectedConversation?.is_group && (
+                                        <p className="font-bold text-[9px] md:text-[10px] text-indigo-500 mb-1 text-left select-none">
+                                          {m.sender_name || 'Group Member'}
+                                        </p>
+                                      )}
                                       {m.is_forwarded && (
                                         <div className="flex items-center gap-1 text-[8px] md:text-[9px] opacity-75 font-semibold italic mb-0.5">
                                           <Share2 className="h-2 w-2 md:h-2.5 md:w-2.5" />
@@ -1127,7 +1233,7 @@ Tell users you can help them navigate the platform.`
                                         </div>
                                       )}
                                       {m.content && (
-                                        <p className={cn("leading-relaxed whitespace-pre-wrap", isEmojiOnly ? "text-[40px] md:text-[64px] text-center" : "text-[11px] md:text-[13px]")}>
+                                        <p className={cn("leading-relaxed whitespace-pre-wrap text-inherit", isEmojiOnly ? "text-[40px] md:text-[64px] text-center" : "text-[11px] md:text-[13px]")}>
                                           {m.content}
                                         </p>
                                       )}
@@ -1148,7 +1254,7 @@ Tell users you can help them navigate the platform.`
                                     </div>
                                   )}
 
-                                  <p className={cn("text-[9px] md:text-[10px] mt-1 flex items-center gap-1", isOwn ? "justify-end" : "justify-start", isEmojiOnly ? "text-muted-foreground opacity-100 font-medium drop-shadow-md bg-background/50 px-2 py-0.5 rounded-full inline-flex absolute -bottom-6 right-0" : (isOwn ? "text-white/80 opacity-60" : "text-muted-foreground opacity-60"))}>
+                                  <p className={cn("text-[9px] md:text-[10px] mt-1 flex items-center gap-1 text-inherit", isOwn ? "justify-end" : "justify-start", isEmojiOnly ? "text-muted-foreground opacity-100 font-medium drop-shadow-md bg-background/50 px-2 py-0.5 rounded-full inline-flex absolute -bottom-6 right-0" : (isOwn ? "opacity-75" : "opacity-60"))}>
                                     <span>{formatTimeAgo(m.created_at)}</span>
                                     {m.updated_at && new Date(m.updated_at).getTime() - new Date(m.created_at).getTime() > 1000 && (
                                       <span>{t('chat_edited')}</span>
@@ -1161,21 +1267,23 @@ Tell users you can help them navigate the platform.`
                                 align={isOwn ? "end" : "start"} 
                                 className={cn(
                                   "p-2 bg-popover/95 backdrop-blur-md border border-border rounded-2xl shadow-xl z-50 overflow-visible transition-all duration-200",
-                                  activeReactionPickerId === m.id ? "w-80" : "w-64"
+                                  activeReactionPickerId === m.id ? "w-[340px]" : "w-[300px]"
                                 )}
                               >
                                 {/* Emoji Quick Reactions row */}
                                 <div className="flex items-center justify-between gap-1 pb-2 mb-2 border-b border-border/50">
-                                  <div className="flex gap-1">
-                                    {recentEmojis.map(emoji => (
+                                  <div className="flex gap-0.5 flex-wrap">
+                                    {recentEmojis.slice(0, 7).map(emoji => (
                                       <button 
                                         key={emoji} 
                                         onClick={(e) => {
                                           e.preventDefault()
                                           e.stopPropagation()
                                           handleReact(m, emoji)
+                                          setActiveReactionPickerId(null)
                                         }} 
-                                        className="h-8 w-8 hover:bg-secondary rounded-full flex items-center justify-center text-lg hover:scale-125 transition-transform"
+                                        title={emoji}
+                                        className="h-9 w-9 hover:bg-secondary rounded-full flex items-center justify-center text-xl hover:scale-125 transition-all duration-150 active:scale-95"
                                       >
                                         {emoji}
                                       </button>
@@ -1187,18 +1295,21 @@ Tell users you can help them navigate the platform.`
                                       e.stopPropagation()
                                       setActiveReactionPickerId(activeReactionPickerId === m.id ? null : m.id)
                                     }}
+                                    title={activeReactionPickerId === m.id ? 'Close picker' : 'More emojis'}
                                     className={cn(
-                                      "h-8 w-8 hover:bg-secondary rounded-full flex items-center justify-center text-lg hover:scale-125 transition-transform",
-                                      activeReactionPickerId === m.id && "bg-secondary text-primary"
+                                      "h-9 w-9 rounded-full flex items-center justify-center transition-all duration-150 shrink-0 border",
+                                      activeReactionPickerId === m.id
+                                        ? "bg-primary text-primary-foreground border-primary scale-95"
+                                        : "hover:bg-secondary text-muted-foreground hover:text-foreground border-border/50 hover:scale-110"
                                     )}
                                   >
-                                    😊
+                                    <Plus className="h-4 w-4" />
                                   </button>
                                 </div>
 
                                 {activeReactionPickerId === m.id && (
                                   <div 
-                                    className="p-1 mb-2 border-b border-border/50 max-h-[300px] overflow-hidden rounded-xl bg-background/50"
+                                    className="mb-2 border-b border-border/50 rounded-xl overflow-hidden"
                                     onPointerDown={(e) => e.stopPropagation()}
                                     onMouseDown={(e) => e.stopPropagation()}
                                     onClick={(e) => {
@@ -1208,9 +1319,9 @@ Tell users you can help them navigate the platform.`
                                   >
                                     <EmojiPicker
                                       width="100%"
-                                      height={280}
+                                      height={320}
                                       skinTonesDisabled
-                                      searchDisabled
+                                      searchDisabled={false}
                                       previewConfig={{ showPreview: false }}
                                       onEmojiClick={(emojiData: any) => {
                                         handleReact(m, emojiData.emoji)
@@ -1291,7 +1402,7 @@ Tell users you can help them navigate the platform.`
                         <div className="h-6 w-1 bg-indigo-500 rounded animate-pulse" />
                         <div className="text-left text-xs overflow-hidden">
                           <p className="font-bold text-indigo-400 text-[10px]">
-                            Replying to {replyingToMsg.sender_id === currentUser.id ? 'You' : 'User'}
+                            Replying to {replyingToMsg.sender_id === currentUser.id ? 'You' : (replyingToMsg.sender_name || 'User')}
                           </p>
                           <p className="text-muted-foreground truncate max-w-md text-[11px]">
                             {replyingToMsg.content || (replyingToMsg.type === 'image' ? '📷 Photo' : replyingToMsg.type === 'audio' ? '🎵 Audio' : 'Attachment')}
@@ -1374,7 +1485,7 @@ Tell users you can help them navigate the platform.`
                       size="icon"
                       onClick={() => handleSendMessage()}
                       disabled={!messageInput.trim() || isStreaming}
-                      className="shrink-0 h-8 w-8 md:h-9 md:w-9 bg-gradient-to-r from-[#4B0082] to-[#E6E6FA] hover:from-[#CC1A3E] hover:to-[#4A0B34] text-white border-0 shadow-md transition-all active:scale-95"
+                      className="shrink-0 h-8 w-8 md:h-9 md:w-9 bg-brand-gradient text-primary-foreground border-0 shadow-md transition-all active:scale-95 hover:opacity-90 cursor-pointer"
                     >
                       <Send className="h-4 w-4 md:h-5 md:w-5" />
                     </Button>
@@ -1386,11 +1497,11 @@ Tell users you can help them navigate the platform.`
               <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-gradient-to-b from-transparent to-secondary/5">
                 <div className="relative mb-8">
                   <div className="absolute inset-0 bg-primary/20 blur-3xl rounded-full" />
-                  <div className="relative h-24 w-24 rounded-full bg-gradient-to-br from-[#4B0082] to-[#E6E6FA] flex items-center justify-center shadow-2xl">
+                  <div className="relative h-24 w-24 rounded-full bg-brand-gradient flex items-center justify-center shadow-2xl">
                     <Bot className="h-12 w-12 text-white" />
                   </div>
                   <div className="absolute -bottom-2 -right-2 h-10 w-10 rounded-full bg-background border-4 border-secondary/5 flex items-center justify-center shadow-lg">
-                    <Sparkles className="h-5 w-5 text-[#4B0082]" />
+                    <Sparkles className="h-5 w-5 text-primary" />
                   </div>
                 </div>
                 <h2 className="text-2xl font-bold mb-3">{t('chat_empty_title')}</h2>
@@ -1400,7 +1511,7 @@ Tell users you can help them navigate the platform.`
                 <div className="grid grid-cols-2 gap-4 w-full max-w-md">
                   <Button
                     onClick={() => { setIsBotSelected(true); setSelectedConversation(null); }}
-                    className="h-12 gap-2 bg-gradient-to-r from-[#4B0082] to-[#E6E6FA] hover:from-[#CC1A3E] hover:to-[#4A0B34] text-white border-0 shadow-lg"
+                    className="h-12 gap-2 bg-brand-gradient text-primary-foreground border-0 shadow-lg hover:brightness-110 transition-all cursor-pointer"
                   >
                     <Bot className="h-5 w-5" />
                     {t('chat_with_ai')}
@@ -1451,6 +1562,79 @@ Tell users you can help them navigate the platform.`
                 ))}
               </div>
             </ScrollArea>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Group Details / View Members / Change Photo Dialog */}
+      <Dialog open={isGroupDetailsOpen} onOpenChange={setIsGroupDetailsOpen}>
+        <DialogContent className="sm:max-w-md bg-popover text-foreground border border-border rounded-2xl shadow-xl">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold text-center">Group Information</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col items-center gap-4 py-4">
+            {/* Group Photo */}
+            <div className="relative group/photo cursor-pointer">
+              <Avatar className="h-24 w-24 border-2 border-border shadow-md">
+                <AvatarImage src={selectedConversation?.group_avatar || undefined} />
+                <AvatarFallback className="text-xl bg-primary/10 text-primary font-bold">
+                  {selectedConversation?.group_name?.[0] || 'G'}
+                </AvatarFallback>
+              </Avatar>
+              <label className="absolute inset-0 bg-black/40 text-white rounded-full flex items-center justify-center opacity-0 group-hover/photo:opacity-100 transition-opacity cursor-pointer">
+                <Camera className="h-5 w-5 text-white" />
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleGroupPhotoChange}
+                  disabled={isChangingGroupPhoto}
+                />
+              </label>
+              {isChangingGroupPhoto && (
+                <div className="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center">
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white" />
+                </div>
+              )}
+            </div>
+            {/* Group Name */}
+            <h3 className="font-bold text-lg text-foreground">{selectedConversation?.group_name}</h3>
+            
+            {/* Members Section */}
+            <div className="w-full text-left mt-2 space-y-2.5">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1">
+                Members ({selectedConversation?.participant_ids.length})
+              </p>
+              <ScrollArea className="h-[200px] pr-1">
+                {isLoadingMembers ? (
+                  <div className="flex justify-center p-8">
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {groupMembers.map(member => (
+                      <div key={member.id} className="flex items-center gap-3 p-2 rounded-lg bg-secondary/20 border border-border/10">
+                        <Avatar className="h-9 w-9">
+                          <AvatarImage src={member.avatar_url || undefined} />
+                          <AvatarFallback className="bg-primary/10 text-primary text-sm font-semibold">
+                            {member.full_name?.[0] || '?'}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-sm text-foreground truncate flex items-center gap-1.5">
+                            {member.full_name}
+                            {member.id === currentUser?.id && (
+                              <span className="text-[10px] bg-primary/15 text-primary px-1.5 py-0.5 rounded-full font-bold">You</span>
+                            )}
+                          </p>
+                          <p className="text-xs text-muted-foreground truncate">@{member.username}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </ScrollArea>
+            </div>
           </div>
         </DialogContent>
       </Dialog>

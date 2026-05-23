@@ -65,7 +65,8 @@ export async function GET(req: NextRequest) {
       SELECT p.*,
              u.full_name as user_name, u.username as user_username, u.avatar_url as user_avatar, u.is_verified as user_verified,
              (SELECT COUNT(*) FROM post_likes pl WHERE pl.post_id = p.id) as likes_count_real,
-             (SELECT COUNT(*) FROM post_comments pc WHERE pc.post_id = p.id) as comments_count_real
+             (SELECT COUNT(*) FROM post_comments pc WHERE pc.post_id = p.id) as comments_count_real,
+             (SELECT array_to_string(array(SELECT DISTINCT emoji FROM post_likes WHERE post_id = p.id AND emoji IS NOT NULL LIMIT 3), ',')) as unique_emojis
       ${fromClause}
       ${whereClause}
       ORDER BY p.created_at DESC
@@ -81,6 +82,45 @@ export async function GET(req: NextRequest) {
 
       const userSaves = await query('SELECT * FROM saved_posts WHERE user_id = $1', [userId])
       saveMap = Object.fromEntries(userSaves.map((s: any) => [s.post_id, s]))
+    }
+
+    const postIds = posts.map((p: any) => p.id)
+    let pollsMap: Record<string, any> = {}
+    let eventsMap: Record<string, any> = {}
+
+    if (postIds.length > 0) {
+      // Fetch polls
+      const polls = await query(`
+        SELECT p.*,
+               (SELECT JSON_AGG(o.*) FROM poll_options o WHERE o.poll_id = p.id) as options,
+               (SELECT COUNT(*)::int FROM poll_votes v WHERE v.poll_id = p.id) as total_votes
+        FROM polls p
+        WHERE p.post_id = ANY($1)
+      `, [postIds])
+
+      // Fetch user votes if userId is present
+      let userVotesMap: Record<string, string> = {} // poll_id -> option_id
+      if (userId && polls.length > 0) {
+        const pollIds = polls.map((pl: any) => pl.id)
+        const userVotes = await query(`
+          SELECT poll_id, option_id FROM poll_votes WHERE user_id = $1 AND poll_id = ANY($2)
+        `, [userId, pollIds])
+        userVotesMap = Object.fromEntries(userVotes.map((v: any) => [v.poll_id, v.option_id]))
+      }
+
+      for (const pl of polls) {
+        pollsMap[pl.post_id] = {
+          id: pl.id,
+          question: pl.question,
+          options: pl.options || [],
+          total_votes: pl.total_votes || 0,
+          user_voted_option_id: userVotesMap[pl.id] || null
+        }
+      }
+
+      // Fetch events
+      const events = await query(`SELECT * FROM events WHERE post_id = ANY($1)`, [postIds])
+      eventsMap = Object.fromEntries(events.map((e: any) => [e.post_id, e]))
     }
 
     const formattedPosts = posts.map((post: any) => ({
@@ -103,7 +143,16 @@ export async function GET(req: NextRequest) {
       },
       is_liked: !!likeMap[post.id],
       is_saved: !!saveMap[post.id],
-      reaction: likeMap[post.id]?.emoji || null
+      reaction: likeMap[post.id]?.emoji || null,
+      uniqueEmojis: post.unique_emojis ? post.unique_emojis.split(',') : [],
+      poll: pollsMap[post.id] || null,
+      event: eventsMap[post.id] ? {
+        id: eventsMap[post.id].id,
+        title: eventsMap[post.id].title,
+        description: eventsMap[post.id].description,
+        event_date: eventsMap[post.id].event_date,
+        location: eventsMap[post.id].location
+      } : null
     }))
 
     return NextResponse.json(formattedPosts)
@@ -115,13 +164,13 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const { image_url, caption, userId, group_id, page_id } = await req.json()
+    const { image_url, caption, userId, group_id, page_id, poll, event } = await req.json()
     
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized: User ID required' }, { status: 401 })
     }
-    if (!image_url && !caption) {
-      return NextResponse.json({ error: 'Media URL or caption is required' }, { status: 400 })
+    if (!image_url && !caption && !poll && !event) {
+      return NextResponse.json({ error: 'Post content is required' }, { status: 400 })
     }
 
     const post = await queryOne(
@@ -129,6 +178,61 @@ export async function POST(req: NextRequest) {
        VALUES ($1, $2, $3, $4, $5) RETURNING *`,
       [userId, image_url || null, caption || '', group_id || null, page_id || null]
     )
+
+    let createdPoll = null
+    let createdEvent = null
+
+    if (poll) {
+      const { question, options } = poll
+      if (!question || !Array.isArray(options) || options.length < 2) {
+        return NextResponse.json({ error: 'Poll question and at least 2 options are required' }, { status: 400 })
+      }
+      
+      const pollRow = await queryOne(
+        `INSERT INTO polls (post_id, question) VALUES ($1, $2) RETURNING *`,
+        [post.id, question]
+      )
+
+      const createdOptions = []
+      for (const opt of options) {
+        if (opt.trim()) {
+          const optRow = await queryOne(
+            `INSERT INTO poll_options (poll_id, option_text) VALUES ($1, $2) RETURNING *`,
+            [pollRow.id, opt.trim()]
+          )
+          createdOptions.push(optRow)
+        }
+      }
+
+      createdPoll = {
+        id: pollRow.id,
+        question: pollRow.question,
+        options: createdOptions,
+        total_votes: 0,
+        user_voted_option_id: null
+      }
+    }
+
+    if (event) {
+      const { title, description, eventDate, location } = event
+      if (!title || !eventDate) {
+        return NextResponse.json({ error: 'Event title and event date are required' }, { status: 400 })
+      }
+
+      const eventRow = await queryOne(
+        `INSERT INTO events (post_id, title, description, event_date, location)
+         VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+        [post.id, title, description || null, eventDate, location || null]
+      )
+
+      createdEvent = {
+        id: eventRow.id,
+        title: eventRow.title,
+        description: eventRow.description,
+        event_date: eventRow.event_date,
+        location: eventRow.location
+      }
+    }
     
     // Notifications
     try {
@@ -152,6 +256,24 @@ export async function POST(req: NextRequest) {
             [page.owner_id, post.id, `${viewer?.full_name || 'Someone'} posted on your page "${page.name}"`, userId]
           )
         }
+      } else if (event) {
+        // Event post - schedule notification to all followers at eventDate
+        const followers = await query('SELECT follower_id FROM follows WHERE following_id = $1', [userId])
+        if (followers && followers.length > 0) {
+          for (const f of followers) {
+            await execute(
+              `INSERT INTO notifications (user_id, type, target_id, target_type, message, from_user_id, is_read, created_at)
+               VALUES ($1, 'event_arrival', $2, 'post', $3, $4, false, $5)`,
+              [
+                f.follower_id,
+                post.id,
+                `${viewer?.full_name || 'Someone'}'s scheduled event "${event.title}" is happening now!`,
+                userId,
+                event.eventDate
+              ]
+            )
+          }
+        }
       } else {
         // Standard post - notify all followers
         const followers = await query('SELECT follower_id FROM follows WHERE following_id = $1', [userId])
@@ -172,7 +294,7 @@ export async function POST(req: NextRequest) {
       }
     } catch (e) { console.error('Notification error', e) }
 
-    return NextResponse.json({ id: post.id, ...post })
+    return NextResponse.json({ id: post.id, ...post, poll: createdPoll, event: createdEvent })
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }

@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 
 import { ThemeProvider } from '@/frontend/components/theme-provider'
+import { ColorThemeProvider } from '@/frontend/components/color-theme-provider'
 import { AuthProvider } from '@/backend/lib/auth-context'
 import { LanguageProvider } from '@/backend/lib/i18n/context'
 import './globals.css'
@@ -43,12 +44,15 @@ export default function RootLayout({
           defaultTheme="system"
           enableSystem
           disableTransitionOnChange
+          themes={['light', 'dark', 'system']}
         >
-          <AuthProvider>
-            <LanguageProvider>
-              {children}
-            </LanguageProvider>
-          </AuthProvider>
+          <ColorThemeProvider>
+            <AuthProvider>
+              <LanguageProvider>
+                {children}
+              </LanguageProvider>
+            </AuthProvider>
+          </ColorThemeProvider>
         </ThemeProvider>
       </body>
     </html>
