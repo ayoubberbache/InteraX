@@ -20,12 +20,34 @@ export async function GET(req: NextRequest) {
       ORDER BY c.last_message_time DESC
     `, [userId])
 
-    return NextResponse.json(conversations)
+    const populated = await Promise.all(conversations.map(async (conv: any) => {
+      const participants = await Promise.all(conv.participant_ids.map(async (pId: string) => {
+        const u = await queryOne('SELECT id, full_name, username, avatar_url, is_verified FROM users WHERE id = $1', [pId])
+        return {
+          conversation_id: conv.id,
+          user_id: pId,
+          user: u ? {
+            id: u.id,
+            full_name: u.full_name,
+            username: u.username,
+            avatar_url: u.avatar_url,
+            is_verified: u.is_verified
+          } : null
+        }
+      }))
+      return {
+        ...conv,
+        participants
+      }
+    }))
+
+    return NextResponse.json(populated)
   } catch (error: any) {
     console.error('[conversations GET]', error)
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 }
+
 
 export async function POST(req: NextRequest) {
   try {

@@ -1,7 +1,7 @@
 import { NextResponse, NextRequest } from 'next/server'
 import { queryOne } from '@/backend/lib/db'
-import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
+import { supabase } from '@/backend/lib/supabase'
 
 const JWT_SECRET = process.env.APP_SECRET || 'interax-secret-key-123'
 
@@ -23,12 +23,26 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Email or username already in use' }, { status: 409 })
     }
 
-    const hash = await bcrypt.hash(password, 10)
+    // Register user in Supabase Auth
+    const { data: authData, error: authError } = await supabase.auth.signUp({
+      email: email.trim(),
+      password,
+      options: {
+        data: {
+          full_name,
+          username: username.toLowerCase()
+        }
+      }
+    })
+
+    if (authError) {
+      return NextResponse.json({ error: authError.message }, { status: 400 })
+    }
 
     const user = await queryOne(
-      `INSERT INTO users (full_name, username, email, password_hash) 
-       VALUES ($1, $2, $3, $4) RETURNING *`,
-      [full_name, username, email, hash]
+      `INSERT INTO users (full_name, username, email, password_hash, is_verified) 
+       VALUES ($1, $2, $3, $4, true) RETURNING *`,
+      [full_name, username, email, 'supabase_auth']
     )
 
     user.followers_count = 0
@@ -43,3 +57,4 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: err.message }, { status: 500 })
   }
 }
+

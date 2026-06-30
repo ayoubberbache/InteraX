@@ -1,7 +1,7 @@
 import { NextResponse, NextRequest } from 'next/server'
 import { queryOne } from '@/backend/lib/db'
-import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
+import { supabase } from '@/backend/lib/supabase'
 
 const JWT_SECRET = process.env.APP_SECRET || 'interax-secret-key-123'
 
@@ -13,15 +13,28 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Email and password are required' }, { status: 400 })
     }
 
-    const user = await queryOne('SELECT * FROM users WHERE email = $1', [email])
-    
-    if (!user) {
-      return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 })
+    // Authenticate with Supabase Auth
+    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+      email: email.trim(),
+      password,
+    })
+
+    if (authError || !authData.session) {
+      return NextResponse.json({ error: authError?.message || 'Invalid credentials' }, { status: 401 })
     }
 
-    const isValid = await bcrypt.compare(password, user.password_hash)
-    if (!isValid) {
-      return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 })
+    // Now find or sync the user in our postgres DB
+    let user = await queryOne('SELECT * FROM users WHERE email = $1', [email.trim()])
+    if (!user) {
+      // If user exists in Supabase but not in our custom postgres users table, we sync them
+      const full_name = authData.user.user_metadata?.full_name || authData.user.user_metadata?.name || email.split('@')[0]
+      const username = authData.user.user_metadata?.preferred_username || authData.user.user_metadata?.user_name || email.split('@')[0].toLowerCase().replace(/[^a-z0-9_]/g, '')
+      const avatar_url = authData.user.user_metadata?.avatar_url || ''
+      user = await queryOne(
+        `INSERT INTO users (full_name, username, email, password_hash, avatar_url, is_verified) 
+         VALUES ($1, $2, $3, $4, $5, true) RETURNING *`,
+        [full_name, username, email.trim(), 'supabase_auth', avatar_url]
+      )
     }
 
     const followersCountRes = await queryOne(`SELECT COUNT(*)::int as count FROM follows WHERE following_id = $1 AND status = 'accepted'`, [user.id])
@@ -39,3 +52,4 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: err.message }, { status: 500 })
   }
 }
+
