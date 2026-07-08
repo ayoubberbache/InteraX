@@ -9,6 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/frontend/components/ui/av
 import { cn } from '@/backend/lib/utils'
 import { uploadMedia } from '@/backend/lib/upload'
 import { useLanguage } from '@/backend/lib/i18n/context'
+import { ImageEditorModal } from '@/frontend/components/image-editor-modal'
 
 export function StoriesBar() {
   const { currentUser } = useAuth()
@@ -18,6 +19,8 @@ export function StoriesBar() {
   const [viewedStories, setViewedStories] = useState<Set<string>>(new Set())
   const [isUploading, setIsUploading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const [isEditorOpen, setIsEditorOpen] = useState(false)
+  const [editorSource, setEditorSource] = useState<File | null>(null)
 
   const loadStories = async () => {
     try {
@@ -95,9 +98,18 @@ export function StoriesBar() {
     if (!e.target.files || !e.target.files[0] || !currentUser) return
     const file = e.target.files[0]
     
+    if (file.type.startsWith('image/')) {
+      setEditorSource(file)
+      setIsEditorOpen(true)
+    } else {
+      await uploadAndSaveStory(file)
+    }
+  }
+
+  const uploadAndSaveStory = async (file: File) => {
     setIsUploading(true)
     try {
-      const url = await uploadMedia(file, currentUser.id, 'story')
+      const url = await uploadMedia(file, currentUser?.id, 'story')
       const res = await fetch('/api/stories', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -119,6 +131,11 @@ export function StoriesBar() {
     } finally {
       setIsUploading(false)
     }
+  }
+
+  const handleEditorSave = async (editedFile: File) => {
+    setIsEditorOpen(false)
+    await uploadAndSaveStory(editedFile)
   }
 
   return (
@@ -204,6 +221,14 @@ export function StoriesBar() {
           }}
         />
       )}
+
+      <ImageEditorModal
+        isOpen={isEditorOpen}
+        source={editorSource}
+        onSave={handleEditorSave}
+        onClose={() => setIsEditorOpen(false)}
+        context="Story"
+      />
     </>
   )
 }

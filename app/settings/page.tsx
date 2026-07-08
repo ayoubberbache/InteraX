@@ -27,8 +27,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/frontend/components/ui/av
 import { Input } from '@/frontend/components/ui/input'
 import { Textarea } from '@/frontend/components/ui/textarea'
 import { toast } from 'sonner'
-import Cropper from 'react-easy-crop'
-import getCroppedImg from '@/frontend/lib/cropImage'
+import { ImageEditorModal } from '@/frontend/components/image-editor-modal'
 import { uploadMedia } from '@/backend/lib/upload'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/frontend/components/ui/dialog'
 import { cn } from '@/backend/lib/utils'
@@ -258,11 +257,9 @@ export default function SettingsPage() {
   const [username, setUsername] = useState(currentUser?.username || '')
   const [bio, setBio] = useState(currentUser?.bio || '')
   
-  // Cropper states
-  const [selectedImage, setSelectedImage] = useState<string | null>(null)
-  const [crop, setCrop] = useState({ x: 0, y: 0 })
-  const [zoom, setZoom] = useState(1)
-  const [croppedAreaPixels, setCroppedAreaPixels] = useState(null)
+  // Editor states
+  const [avatarFile, setAvatarFile] = useState<File | null>(null)
+  const [isEditorOpen, setIsEditorOpen] = useState(false)
   
   // Notification settings
   const [pushEnabled, setPushEnabled] = useState(true)
@@ -323,22 +320,16 @@ export default function SettingsPage() {
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
-    const url = URL.createObjectURL(file)
-    setSelectedImage(url)
+    setAvatarFile(file)
+    setIsEditorOpen(true)
   }
 
-  const handleCropComplete = (croppedArea: any, croppedAreaPixels: any) => {
-    setCroppedAreaPixels(croppedAreaPixels)
-  }
-
-  const handleUploadPhoto = async () => {
-    if (!currentUser || !selectedImage || !croppedAreaPixels) return
+  const handleEditorSave = async (editedFile: File) => {
+    if (!currentUser) return
+    setIsEditorOpen(false)
     setIsUploading(true)
     try {
-      const croppedImageFile = await getCroppedImg(selectedImage, croppedAreaPixels)
-      if (!croppedImageFile) throw new Error('Crop failed')
-
-      const url = await uploadMedia(croppedImageFile, currentUser.id, 'avatar')
+      const url = await uploadMedia(editedFile, currentUser.id, 'avatar')
 
       const patchRes = await fetch('/api/users', {
         method: 'PATCH',
@@ -348,7 +339,7 @@ export default function SettingsPage() {
       if (!patchRes.ok) throw new Error('Failed to update db')
       if (refreshUser) await refreshUser()
       toast.success(t('set_avatar_success'))
-      setSelectedImage(null)
+      setAvatarFile(null)
     } catch (err) {
       console.error(err)
       toast.error(t('set_avatar_error'))
@@ -905,48 +896,21 @@ export default function SettingsPage() {
   }
 
   return (
-    <MainLayout>
-      {selectedImage && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-          <div className="bg-card w-full max-w-lg rounded-2xl overflow-hidden flex flex-col shadow-2xl">
-            <div className="p-4 border-b font-semibold flex justify-between items-center bg-background">
-              <span>{t('set_adjust_photo')}</span>
-              <Button variant="ghost" size="sm" onClick={() => setSelectedImage(null)}>{t('set_cancel')}</Button>
-            </div>
-            <div className="relative w-full h-[400px] bg-black/90">
-              <Cropper
-                image={selectedImage}
-                crop={crop}
-                zoom={zoom}
-                aspect={1}
-                cropShape="round"
-                showGrid={false}
-                onCropChange={setCrop}
-                onCropComplete={handleCropComplete}
-                onZoomChange={setZoom}
-              />
-            </div>
-            <div className="p-6 space-y-6 bg-background">
-              <div className="flex items-center gap-4">
-                <span className="text-sm font-medium">{t('set_zoom')}</span>
-                <input
-                  type="range"
-                  value={zoom}
-                  min={1}
-                  max={3}
-                  step={0.1}
-                  aria-labelledby="Zoom"
-                  onChange={(e) => setZoom(Number(e.target.value))}
-                  className="w-full accent-primary h-2 bg-secondary rounded-lg appearance-none cursor-pointer"
-                />
-              </div>
-              <Button className="w-full rounded-full" onClick={handleUploadPhoto} disabled={isUploading}>
-                {isUploading ? t('set_applying') : t('set_apply_save')}
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+    <>
+      {/* Image editor portal — rendered outside MainLayout so it never
+          interferes with the page's layout tree */}
+      <ImageEditorModal
+        isOpen={isEditorOpen}
+        source={avatarFile}
+        onSave={handleEditorSave}
+        onClose={() => {
+          setIsEditorOpen(false)
+          setAvatarFile(null)
+        }}
+        cropShape="round"
+        context="Profile Photo"
+      />
+      <MainLayout>
 
       {/* Change Password Dialog */}
       <Dialog open={showPasswordDialog} onOpenChange={setShowPasswordDialog}>
@@ -1061,5 +1025,6 @@ export default function SettingsPage() {
         </div>
       </div>
     </MainLayout>
+    </>
   )
 }

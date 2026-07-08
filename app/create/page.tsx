@@ -14,6 +14,7 @@ import { uploadMedia } from '@/backend/lib/upload'
 import { cn } from '@/backend/lib/utils'
 import { toast } from 'sonner'
 import { useLanguage } from '@/backend/lib/i18n/context'
+import { ImageEditorModal } from '@/frontend/components/image-editor-modal'
 
 export default function CreatePage() {
   const router = useRouter()
@@ -26,6 +27,10 @@ export default function CreatePage() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [isPosting, setIsPosting] = useState(false)
   const [uploadProgress, setUploadProgress] = useState(0)
+
+  // Editor States
+  const [isEditorOpen, setIsEditorOpen] = useState(false)
+  const [editorSource, setEditorSource] = useState<File | null>(null)
 
   // Poll States
   const [pollQuestion, setPollQuestion] = useState('')
@@ -61,7 +66,18 @@ export default function CreatePage() {
       const file = e.target.files[0]
       setSelectedFile(file)
       setPreviewUrl(URL.createObjectURL(file))
+      
+      if (file.type.startsWith('image/')) {
+        setEditorSource(file)
+        setIsEditorOpen(true)
+      }
     }
+  }
+
+  const handleEditorSave = (editedFile: File) => {
+    setSelectedFile(editedFile)
+    setPreviewUrl(URL.createObjectURL(editedFile))
+    setIsEditorOpen(false)
   }
 
   const handleAddPollOption = () => {
@@ -268,6 +284,21 @@ export default function CreatePage() {
                         <img src={previewUrl} alt="Selected preview" className="w-full max-h-[500px] object-cover" />
                       )}
                       
+                      {!isVideo && !isAudio && (
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          className="absolute top-2 left-2 rounded-full shadow-md opacity-0 group-hover:opacity-100 transition-opacity gap-1"
+                          onClick={() => {
+                            setEditorSource(selectedFile)
+                            setIsEditorOpen(true)
+                          }}
+                        >
+                          <Sparkles className="h-3.5 w-3.5 text-primary" />
+                          Edit
+                        </Button>
+                      )}
+                      
                       <Button
                         variant="destructive"
                         size="icon"
@@ -275,6 +306,7 @@ export default function CreatePage() {
                         onClick={() => {
                           setSelectedFile(null)
                           setPreviewUrl(null)
+                          setEditorSource(null)
                         }}
                       >
                         <X className="h-4 w-4" />
@@ -420,6 +452,13 @@ export default function CreatePage() {
           )}
         </div>
       </div>
+      <ImageEditorModal
+        isOpen={isEditorOpen}
+        source={editorSource}
+        onSave={handleEditorSave}
+        onClose={() => setIsEditorOpen(false)}
+        context="Post"
+      />
     </MainLayout>
   )
 }
